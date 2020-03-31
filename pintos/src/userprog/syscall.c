@@ -5,11 +5,11 @@
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
-void handle_pracitce(int i);
+int handle_practice(int i);
 void handle_halt(void);
-void handle_exit(int status);
-pid_t handle_exec(const char* cmd_line);
-int handle_wait(pid_t pid);
+void handle_exit(int status, struct intr_frame *f UNUSED);
+void handle_exec(const char* cmd_line);
+int handle_wait(int pid);
 
 void syscall_init (void) {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -24,7 +24,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_HALT:
       handle_halt(); break;
     case SYS_EXIT:
-      handle_exit(args[1]); break;
+      handle_exit(args[1], f); break;
     case SYS_EXEC:
       handle_exec(args[1]); break;
     case SYS_WAIT:
@@ -36,7 +36,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 // Handle Syscalls Here:
-int handle_pracitce(int i) {
+int handle_practice(int i) {
   return ++i;
 }
 
@@ -45,7 +45,7 @@ void handle_halt() {
   shutdown_power_off();
 }
 
-void handle_exit(int status) {
+void handle_exit(int status, struct intr_frame *f UNUSED) {
   f->eax = status;
   printf("%s: exit(%d)\n", &thread_current ()->name, status);
   thread_exit();
@@ -55,6 +55,6 @@ void handle_exec(const char* cmd_line) {
 
 }
 
-void handle_wait(pid_t pid) {
-
+int handle_wait(int pid) {
+  return 0;
 }
