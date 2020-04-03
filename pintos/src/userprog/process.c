@@ -19,52 +19,87 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#define PATH_MAX 14
+
+typedef struct process_execute_info {
+  int argc;
+  int tot_len;
+  int status;
+  char* argv[32];
+  char* argv_addr[32];
+  char file_name[PATH_MAX];
+  // othr.
+  void* RET_PTR;
+} process_execute_info;
+
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 void initialize_process_execute_info(process_execute_info* pe_info, char* line);
-void argument_pass(process_execute_info* pe_info, void* esp);
-void destroy_process_execute_info(process_execute_info* pe_info);
-
-struct process_execute_info {
-  int argc;
-  int status;
-  char* argv[32];
-  char* file_name;
-  // othr.
-  void* RET_PTR;
-}typedef process_execute_info;
-
+void argument_pass(process_execute_info* pe_info, void** esp);
 
 void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
     char* tok_ptr = NULL;
     char* token = strtok_r(line, " ", &tok_ptr);
     // set file name
-    pe_info->file_name = strdup(token);
+    memcpy(pe_info->file_name, token, strlen(token) + 1);
     // set arguments
-    pe_info[0] = strdup(token); //has to be path
-    for(int i = 1; i < 32; i++) {
-      token = strtok_r(NULL, " ", &tok_ptr);
-      pe_info->argv[i] = strdup(token);
-      if(token == NULL) {
-        pe_info->argc = i+1;
-        break;  
-      }
+    int i = 0;
+    while(i < 32) {
+       if(token == NULL) {
+          pe_info->argv[i] = NULL;
+          pe_info->argc = i;
+          break;  
+        }
+        char temp[PATH_MAX];
+        int len = strlen(token) + 1;
+        memcpy(temp, token, len);
+        pe_info->tot_len += len;
+        pe_info->argv[i] = temp;
+        
+        token = strtok_r(NULL, " ", &tok_ptr);
+        i++;
     }
     pe_info->status = 0;
+    pe_info->tot_len = 0;
     pe_info->RET_PTR = NULL;
 }
 
-void argument_pass(process_execute_info* pe_info, void* esp) {
-
-}
-
-void destroy_process_execute_info(process_execute_info* pe_info) {
-  free(pe_info->file_name);
-  for(int i = 0; i < spe_info->argc; i++) {
-    free(argv[i]);
+void argument_pass(process_execute_info* pe_info, void** esp) {
+  *esp -= pe_info->tot_len;
+  void* pointers[pe_info->tot_len];
+  int i = 0;
+  int offset = 0;
+  int len = 0;
+  while(i < pe_info->argc){
+    len = strlen(pe_info->argv[i]) + 1;
+    pointers[i] = *esp + offset;
+    memcpy(pointers[i], pe_info->argv[i], len);
+    offset += len;
+    i++;
   }
+
+  *esp -= *(uint8_t*)esp % 4;
+   *(uint8_t*) *esp = 0;
+
+  *esp -= sizeof(char*) * pe_info->argc;
+  i = 0;
+  while(i <= pe_info->argc){
+    *((void**)*esp + i*sizeof(char*)) = pointers[i];
+    offset += sizeof(char*);
+    i++;
+  }
+
+  *esp -= sizeof(char*);
+  *(char*) *esp = pe_info->argv;
+
+  *esp -= sizeof(int);
+  *(int*) *esp = pe_info->argc;
+  
+  *esp -= sizeof(void*);
+  *((void **) *esp) = 0;
 }
+
 
 
 /* Starts a new thread running a user program loaded from
@@ -73,29 +108,29 @@ void destroy_process_execute_info(process_execute_info* pe_info) {
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t process_execute (const char *file_name) {
   tid_t tid;
-  char *fn_copy;
-
-  process_execute_info pe_info;
-  initialize_process_execute_info(&pe_info, file_name);
-
+  
   sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
+  process_execute_info* pe_info = palloc_get_page (0);
+
+  if (pe_info == NULL)
     return TID_ERROR;
   
+  initialize_process_execute_info(pe_info, file_name);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
+  // sema_down(&temporary);
+  if (tid == TID_ERROR || !pe_info->status )
+    palloc_free_page (pe_info);
+    return TID_ERROR;
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void start_process (void *pe_info_) {
-  process_execute_info pe_info = *(process_execute_info*)pe_info_;
+  process_execute_info* pe_info = (process_execute_info*)pe_info_;
   struct intr_frame if_;
   bool success;
 
@@ -104,13 +139,14 @@ static void start_process (void *pe_info_) {
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load(pe_info.file_name, &if_.eip, &if_.esp);
+  success = load(pe_info->file_name, &if_.eip, &if_.esp);
   if(success) {
     argument_pass(pe_info, &if_.esp);
   }
 
-  palloc_free_page (pe_info.file_name);
-  sema_up(&temporary);
+  // palloc_free_page (pe_info->file_name);
+  pe_info->status = success;
+  // sema_up(&temporary);
   /* If load failed, quit. */
   if (!success)
     thread_exit ();
@@ -257,7 +293,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *pe_info, void (**eip) (void), void **esp)
+load (const char *file_name, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -266,7 +302,6 @@ load (const char *pe_info, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
-  process_execute_info pe_info = *(process_execute_info*)pe_info;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -275,10 +310,10 @@ load (const char *pe_info, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (pe_info.file_name);
+  file = filesys_open (file_name);
   if (file == NULL)
     {
-      printf ("load: %s: open failed\n", pe_info.file_name);
+      printf ("load: %s: open failed\n", file_name);
       goto done;
     }
 
@@ -291,7 +326,7 @@ load (const char *pe_info, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024)
     {
-      printf ("load: %s: error loading executable\n", pe_info.file_name);
+      printf ("load: %s: error loading executable\n", file_name);
       goto done;
     }
 
