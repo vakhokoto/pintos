@@ -22,27 +22,70 @@
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+void initialize_process_execute_info(process_execute_info* pe_info, char* line);
+
+struct process_execute_info {
+  int status;
+  char** argv;
+  char* file_name;
+  // othr.
+  void* RET_PTR;
+};
+void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
+    char* tok_ptr = NULL;
+    char* token = strtok_r(line, " ", &tok_ptr);
+    // set file name
+    pe_info->file_name = strdup(token);
+    // count argv length
+    int argv_len = 1, idx = 0;
+    while(strtok_r(NULL, " ", &tok_ptr)) {
+      argv_len++;
+    }
+    // set argvs
+    pe_info->argv = malloc((argv_len+1)*sizeof(char*));
+    tok_ptr = NULL;
+    token = strtok_r(line, " ", &tok_ptr);
+    while(1) {
+      token = strtok_r(NULL, " ", &tok_ptr);
+      pe->info->argv[idx++] = strdup(token);
+      if(token == NULL) break;
+    }
+    pe_info->status = 0;
+}
+
+void argument_pass(process_execute_info* pe_info, void* esp) {
+
+}
+
+void destroy_process_execute_info(process_execute_info* pe_info) {
+  free(pe_info->argv);
+  free(pe_info->file_name);
+  // for(int i = 0; i < strlen(pe_info->argv) / sizeof(argv[0]); i++) {
+  //   free(argv[i]);
+  // }
+}
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t
-process_execute (const char *file_name)
-{
-  char *fn_copy;
+tid_t process_execute (const char *file_name) {
   tid_t tid;
-  
+  char *fn_copy;
+
+  process_execute_info pe_info;
+  initialize_process_execute_info(&pe_info, file_name);
+
   sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
-
+  
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -50,10 +93,8 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
    running. */
-static void
-start_process (void *file_name_)
-{
-  char *file_name = file_name_;
+static void start_process (void *pe_info_) {
+  process_execute_info pe_info = *(process_execute_info*)pe_info_;
   struct intr_frame if_;
   bool success;
 
@@ -62,10 +103,14 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load(pe_info.file_name, &if_.eip, &if_.esp);
+  if(success) {
+    argument_pass(pe_info, &if_.esp);
+  }
 
+  palloc_free_page (pe_info.file_name);
+  sema_up(&temporary);
   /* If load failed, quit. */
-  palloc_free_page (file_name);
   if (!success)
     thread_exit ();
 
@@ -211,7 +256,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp)
+load (const char *pe_info, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -220,6 +265,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  process_execute_info pe_info = *(process_execute_info*)pe_info;
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
@@ -227,10 +274,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (pe_info.file_name);
   if (file == NULL)
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", pe_info.file_name);
       goto done;
     }
 
@@ -243,7 +290,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024)
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", pe_info.file_name);
       goto done;
     }
 
