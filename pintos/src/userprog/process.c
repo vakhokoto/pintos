@@ -23,34 +23,36 @@ static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 void initialize_process_execute_info(process_execute_info* pe_info, char* line);
+void argument_pass(process_execute_info* pe_info, void* esp);
+void destroy_process_execute_info(process_execute_info* pe_info);
 
 struct process_execute_info {
+  int argc;
   int status;
-  char** argv;
+  char* argv[32];
   char* file_name;
   // othr.
   void* RET_PTR;
-};
+}typedef process_execute_info;
+
+
 void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
     char* tok_ptr = NULL;
     char* token = strtok_r(line, " ", &tok_ptr);
     // set file name
     pe_info->file_name = strdup(token);
-    // count argv length
-    int argv_len = 1, idx = 0;
-    while(strtok_r(NULL, " ", &tok_ptr)) {
-      argv_len++;
-    }
-    // set argvs
-    pe_info->argv = malloc((argv_len+1)*sizeof(char*));
-    tok_ptr = NULL;
-    token = strtok_r(line, " ", &tok_ptr);
-    while(1) {
+    // set arguments
+    pe_info[0] = strdup(token); //has to be path
+    for(int i = 1; i < 32; i++) {
       token = strtok_r(NULL, " ", &tok_ptr);
-      pe->info->argv[idx++] = strdup(token);
-      if(token == NULL) break;
+      pe_info->argv[i] = strdup(token);
+      if(token == NULL) {
+        pe_info->argc = i+1;
+        break;  
+      }
     }
     pe_info->status = 0;
+    pe_info->RET_PTR = NULL;
 }
 
 void argument_pass(process_execute_info* pe_info, void* esp) {
@@ -58,11 +60,10 @@ void argument_pass(process_execute_info* pe_info, void* esp) {
 }
 
 void destroy_process_execute_info(process_execute_info* pe_info) {
-  free(pe_info->argv);
   free(pe_info->file_name);
-  // for(int i = 0; i < strlen(pe_info->argv) / sizeof(argv[0]); i++) {
-  //   free(argv[i]);
-  // }
+  for(int i = 0; i < spe_info->argc; i++) {
+    free(argv[i]);
+  }
 }
 
 
