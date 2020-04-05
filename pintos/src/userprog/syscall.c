@@ -109,7 +109,7 @@ void handle_exit(int status) {
 }
 
 void handle_exec(const char* cmd_line) {
-  process_execute(cmd_line);
+  // process_execute(cmd_line);
 }
 
 int handle_wait(int pid) {
@@ -118,12 +118,12 @@ int handle_wait(int pid) {
 
 bool handle_create(const char *file, unsigned initial_size) {
   // need lock?
-  return filesys_create(file, initial_size);
+  // return filesys_create(file, initial_size);
 }
 
 bool handle_remove(const char *file) {
   // need lock?
-  return filesys_remove(file);
+  // return filesys_remove(file);
 }
 
 int handle_open(const char *file) {

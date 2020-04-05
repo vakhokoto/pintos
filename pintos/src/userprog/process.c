@@ -22,21 +22,17 @@
 
 #define PATH_MAX 14
 
-typedef struct process_execute_info {
-  int argc;
-  int tot_len;
-  int status;
-  char* argv[32];
-  char* argv_addr[32];
-  char file_name[PATH_MAX];
-  // othr.
-  void* RET_PTR;
-} process_execute_info;
-
-static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (process_execute_info* pe_info, void (**eip) (void), void **esp);
 void initialize_process_execute_info(process_execute_info* pe_info, char* line);
+void initialize_child_info(child_info* ch_info);
+
+
+void initialize_child_info(child_info* ch_info) {
+  ch_info->wait_status = !WAITING;
+  ch_info->child_tid = 0;
+  ch_info->exit_status = -1;
+}
 
 void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
     char* tok_ptr = NULL;
@@ -44,8 +40,6 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
     // set file name
     memcpy(pe_info->file_name, token, strlen(token) + 1);
     // set arguments
-    pe_info->status = 0;
-    pe_info->RET_PTR = NULL;
     pe_info->tot_len = 0;
     int i = 0;
     while(i < 32) {
@@ -63,7 +57,6 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
       token = strtok_r(NULL, " ", &tok_ptr);
       i++;
     }
-    
 }
 
 /* Starts a new thread running a user program loaded from
@@ -71,28 +64,33 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t process_execute (const char *file_name) {
-  tid_t tid;
-  
-  sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   char* fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+
+  child_info* ch_info = malloc(sizeof(child_info));
   process_execute_info* pe_info = malloc(sizeof(process_execute_info));
 
-  if (pe_info == NULL)
+  if (ch_info == NULL || pe_info == NULL)
     return TID_ERROR;
   
+  initialize_child_info(ch_info);
   initialize_process_execute_info(pe_info, fn_copy);
+  
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
-  // sema_down(&temporary);
-  if (tid == TID_ERROR || !pe_info->status )
+  ch_info->child_tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
+  /* Waiting to load */
+  sema_down(&(thread_current()->wait_child));
+  /* Push Child's struct in Parent's list */
+  list_push_back(&thread_current()->children, &(ch_info->elem));
+  if (ch_info->child_tid == TID_ERROR)
     palloc_free_page (fn_copy);
     return TID_ERROR;
-  return tid;
+
+  return ch_info->child_tid;
 }
 
 /* A thread function that loads a user process and starts it
@@ -108,8 +106,7 @@ static void start_process (void *pe_info_) {
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(pe_info, &if_.eip, &if_.esp);
 
-  pe_info->status = success;
-  // sema_up(&temporary);
+  sema_up(&(thread_current()->parent->wait_child));
   /* If load failed, quit. */
   if (!success)
     thread_exit ();
@@ -124,6 +121,28 @@ static void start_process (void *pe_info_) {
   NOT_REACHED ();
 }
 
+/* finds child threads PEInfo struct by threads TID*/
+struct child_info* get_child_struct(tid_t child_tid UNUSED) {
+  struct list_elem* e;
+  for (e = list_begin(&(thread_current()->children)); e != list_end(&(thread_current()->children)); e = list_next(e)) {
+      struct child_info* ch_info = list_entry(e, struct child_info, elem);
+      if(ch_info->child_tid = child_tid)
+        return ch_info;
+  }
+  return NULL;
+}
+
+/* removes child threads PEInfo struct by threads TID*/
+struct child_info* remove_child_struct(tid_t child_tid UNUSED) {
+  struct list_elem* e;
+  for (e = list_begin(&(thread_current()->children)); e != list_end(&(thread_current()->children)); e = list_next(e)) {
+      struct child_info* ch_info = list_entry(e, struct child_info, elem);
+      if(ch_info->child_tid = child_tid) 
+        return list_remove(&ch_info->elem);
+  }
+  return NULL;
+}
+
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -133,25 +152,30 @@ static void start_process (void *pe_info_) {
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-int
-process_wait (tid_t child_tid UNUSED)
-{
-  sema_down (&temporary);
-  return 0;
+int process_wait (tid_t child_tid UNUSED) {
+  struct child_info* ch_info = get_child_struct(child_tid);
+
+  if(ch_info == NULL || ch_info->wait_status == WAITING) 
+    return -1;
+
+  ch_info->wait_status = WAITING;
+  sema_down(&(thread_current()->wait_child));
+  remove_child_struct(child_tid);
+  return thread_current()->exit_code;
 }
 
 /* Free the current process's resources. */
-void
-process_exit (void)
-{
+void process_exit (void) {
   struct thread *cur = thread_current ();
-  uint32_t *pd;
-
+  // edited
+  // while(!list_empty(&(thread_current()->children))) {
+  //   list_pop_back(&(thread_current()->children));
+  // }
+  // thread_current()->parent->exit_code = EXITCODE_SUCCESS;
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-  pd = cur->pagedir;
-  if (pd != NULL)
-    {
+  uint32_t *pd = cur->pagedir;
+  if (pd != NULL) {
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
          so that a timer interrupt can't switch back to the
@@ -163,7 +187,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up (&temporary);
+  // sema_up (&temporary);
+  sema_up(&(thread_current()->parent->wait_child));
 }
 
 /* Sets up the CPU for running user code in the current

@@ -91,10 +91,16 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-
+    
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    /* For Child thread */
+    struct list children;               /* List for children structs.*/
+    struct semaphore wait_child;        /* lock for waiting child */
+    struct thread* parent;              /* to reach exit code */
+    int exit_code;
+   
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
