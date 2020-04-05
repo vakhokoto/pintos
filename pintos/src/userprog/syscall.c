@@ -28,52 +28,53 @@ void syscall_init (void) {
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
-  uint32_t* SYSCALL_NUM = ((uint32_t*) f->esp);
+  uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
   printf("System call number: %d\n", SYSCALL_NUM);
-
-  void* argv = f->esp + sizeof uint32_t; 
+  int fd;
+  const char* file;
+  void* argv = f->esp + sizeof(uint32_t); 
   switch(SYSCALL_NUM) {
-    case SYS_PRACTICE:
-      int i = (int)argv;
+    case SYS_PRACTICE:;
+      int i = *(int*)argv;
       f->eax = handle_practice(i); break;
     case SYS_HALT:
       handle_halt(); break;
-    case SYS_EXIT:
-      int status = (int)argv;
+    case SYS_EXIT:;
+      int status = *(int*)argv;
       handle_exit(status); break;
-    case SYS_EXEC:
+    case SYS_EXEC:;
       const char* cmd_line = (const char*)argv;
       handle_exec(cmd_line); break;
-    case SYS_WAIT:
-      int pid = (int)argv;
+    case SYS_WAIT:;
+      int pid = *(int*)argv;
       f->eax = handle_wait(pid); break;
-    case SYS_CREATE:
-      const char* file = (char*)argv;
-      unsigned initial_size = (unsigned)(argv + sizeof file);
+    case SYS_CREATE:;
+      file = (char*)argv;
+      unsigned initial_size = *(unsigned*)(argv + sizeof file);
       f->eax = handle_create(file, initial_size); break;
-    case SYS_REMOVE:
-      const char* file = (char*)argv;
-      f->eax = handle_remove(args[1]); break;
-    case SYS_OPEN:
-      const char* file = (char*)argv;
+    case SYS_REMOVE:;
+      file = (char*)argv;
+      f->eax = handle_remove(file); break;
+    case SYS_OPEN:;
+      file = (char*)argv;
       f->eax = handle_open(file); break;
-    case SYS_FILESIZE:
-      int fd = (int)argv;
+    case SYS_FILESIZE:;
+      fd = *(int*)argv;
       f->eax = handle_filesize(fd); break;
-    case SYS_WRITE:
-      int fd = (int)argv;
-      const void* buffer = (const void)(argv + sizeof fd);
+    case SYS_WRITE:;
+      fd = *(int*)argv;
+      const void* buffer = (const void*)(argv + sizeof fd);
       unsigned size = (unsigned)(argv + sizeof fd + sizeof buffer);
       f->eax = handle_write(fd, buffer, size); break;
-    case SYS_SEEK:
-      int fd = (int)argv;
+    case SYS_SEEK:;
+      fd = *(int*)argv;
       unsigned position = (unsigned)(argv + sizeof fd);
       handle_seek(fd, position); break;
-    case SYS_TELL:
-      int fd = (int)argv;
+    case SYS_TELL:;
+      fd = *(int*)argv;
       f->eax = handle_tell(fd); break;
-    case SYS_CLOSE:
-      int fd = (int)argv;
+    case SYS_CLOSE:;
+      int fd = *(int*)argv;
       handle_close(fd); break;
     default:
       printf("Not Recognized syscall."); 

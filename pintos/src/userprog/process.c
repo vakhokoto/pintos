@@ -18,6 +18,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 #define PATH_MAX 14
 
@@ -34,9 +35,8 @@ typedef struct process_execute_info {
 
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (process_execute_info* pe_info, void (**eip) (void), void **esp);
 void initialize_process_execute_info(process_execute_info* pe_info, char* line);
-void argument_pass(process_execute_info* pe_info, void** esp);
 
 void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
     char* tok_ptr = NULL;
@@ -44,63 +44,27 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
     // set file name
     memcpy(pe_info->file_name, token, strlen(token) + 1);
     // set arguments
+    pe_info->status = 0;
+    pe_info->RET_PTR = NULL;
+    pe_info->tot_len = 0;
     int i = 0;
     while(i < 32) {
-       if(token == NULL) {
-          pe_info->argv[i] = NULL;
-          pe_info->argc = i;
-          break;  
-        }
-        char temp[PATH_MAX];
-        int len = strlen(token) + 1;
-        memcpy(temp, token, len);
-        pe_info->tot_len += len;
-        pe_info->argv[i] = temp;
-        
-        token = strtok_r(NULL, " ", &tok_ptr);
-        i++;
+      if(token == NULL) {
+        pe_info->argv[i] = NULL;
+        pe_info->argc = i;
+        break;  
+      }
+      char temp[PATH_MAX];
+      int len = strlen(token) + 1;
+      memcpy(temp, token, len);
+      pe_info->tot_len += len;
+      pe_info->argv[i] = temp;
+      
+      token = strtok_r(NULL, " ", &tok_ptr);
+      i++;
     }
-    pe_info->status = 0;
-    pe_info->tot_len = 0;
-    pe_info->RET_PTR = NULL;
+    
 }
-
-void argument_pass(process_execute_info* pe_info, void** esp) {
-  *esp -= pe_info->tot_len;
-  void* pointers[pe_info->tot_len];
-  int i = 0;
-  int offset = 0;
-  int len = 0;
-  while(i < pe_info->argc){
-    len = strlen(pe_info->argv[i]) + 1;
-    pointers[i] = *esp + offset;
-    memcpy(pointers[i], pe_info->argv[i], len);
-    offset += len;
-    i++;
-  }
-
-  *esp -= *(uint8_t*)esp % 4;
-   *(uint8_t*) *esp = 0;
-
-  *esp -= sizeof(char*) * pe_info->argc;
-  i = 0;
-  while(i <= pe_info->argc){
-    *((void**)*esp + i*sizeof(char*)) = pointers[i];
-    offset += sizeof(char*);
-    i++;
-  }
-
-  *esp -= sizeof(char*);
-  *(char*) *esp = pe_info->argv;
-
-  *esp -= sizeof(int);
-  *(int*) *esp = pe_info->argc;
-  
-  *esp -= sizeof(void*);
-  *((void **) *esp) = 0;
-}
-
-
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -112,17 +76,21 @@ tid_t process_execute (const char *file_name) {
   sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  process_execute_info* pe_info = palloc_get_page (0);
+  char* fn_copy = palloc_get_page (0);
+  if (fn_copy == NULL)
+    return TID_ERROR;
+  strlcpy (fn_copy, file_name, PGSIZE);
+  process_execute_info* pe_info = malloc(sizeof(process_execute_info));
 
   if (pe_info == NULL)
     return TID_ERROR;
   
-  initialize_process_execute_info(pe_info, file_name);
+  initialize_process_execute_info(pe_info, fn_copy);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
   // sema_down(&temporary);
   if (tid == TID_ERROR || !pe_info->status )
-    palloc_free_page (pe_info);
+    palloc_free_page (fn_copy);
     return TID_ERROR;
   return tid;
 }
@@ -133,18 +101,13 @@ static void start_process (void *pe_info_) {
   process_execute_info* pe_info = (process_execute_info*)pe_info_;
   struct intr_frame if_;
   bool success;
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load(pe_info->file_name, &if_.eip, &if_.esp);
-  if(success) {
-    argument_pass(pe_info, &if_.esp);
-  }
+  success = load(pe_info, &if_.eip, &if_.esp);
 
-  // palloc_free_page (pe_info->file_name);
   pe_info->status = success;
   // sema_up(&temporary);
   /* If load failed, quit. */
@@ -282,7 +245,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, process_execute_info* pe_info);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -293,7 +256,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp)
+load (process_execute_info* pe_info, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -301,6 +264,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+  char* file_name = pe_info->file_name;
 
 
   /* Allocate and activate page directory. */
@@ -308,7 +272,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
-
+  
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL)
@@ -390,7 +354,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, pe_info))
     goto done;
 
   /* Start address. */
@@ -515,7 +479,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp)
+setup_stack (void **esp, process_execute_info* pe_info)
 {
   uint8_t *kpage;
   bool success = false;
@@ -524,9 +488,44 @@ setup_stack (void **esp)
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success){
         *esp = PHYS_BASE;
-      else
+        *esp -= pe_info->tot_len;
+        void* pointers[pe_info->tot_len];
+        int i = 0;
+        int offset = 0;
+        int len = 0;
+        while(i < pe_info->argc){
+          len = strlen(pe_info->argv[i]) + 1;
+          pointers[i] = *esp + offset;
+          memcpy(*esp + offset, pe_info->argv[i], len);
+          offset += len;
+          i++;
+        }
+
+        *esp -= *(uint8_t*)esp % 4;
+        *esp -= 4;
+        *(uint8_t*) *esp = 0;
+
+        *esp -= sizeof(char*) * pe_info->argc;
+        i = 0;
+        offset = 0;
+        while(i <= pe_info->argc){
+          *((void**)*esp + i*sizeof(char*)) = pointers[i];
+          offset += sizeof(char*);
+          i++;
+        }        
+
+        *esp -= sizeof(char*);
+        *((void**) *esp) = (*esp + sizeof(char*));
+
+        *esp -= sizeof(int);
+        *((int*) *esp) = pe_info->argc;
+
+        *esp -= sizeof(void*);
+        *((int*) *esp) = 0;
+        
+      } else
         palloc_free_page (kpage);
     }
   return success;
