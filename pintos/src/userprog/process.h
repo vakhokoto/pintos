@@ -17,6 +17,7 @@ typedef struct child_info {
   tid_t child_tid;
   int wait_status;
   int exit_status;
+  struct semaphore sem;
 } child_info;
 
 typedef struct process_execute_info {

@@ -200,7 +200,6 @@ thread_create (const char *name, int priority,
 
   t->parent = thread_current();
   list_init(&(thread_current()->children));
-  sema_init(&(thread_current()->wait_child), 0);
   /* Add to run queue. */
   thread_unblock (t);
 

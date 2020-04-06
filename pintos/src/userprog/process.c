@@ -26,12 +26,15 @@ static thread_func start_process NO_RETURN;
 static bool load (process_execute_info* pe_info, void (**eip) (void), void **esp);
 void initialize_process_execute_info(process_execute_info* pe_info, char* line);
 void initialize_child_info(child_info* ch_info);
+struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED);
+struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSED);
 
 
 void initialize_child_info(child_info* ch_info) {
   ch_info->wait_status = !WAITING;
   ch_info->child_tid = 0;
   ch_info->exit_status = -1;
+  sema_init(&(ch_info->sem), 0);
 }
 
 void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
@@ -82,10 +85,10 @@ tid_t process_execute (const char *file_name) {
   
   /* Create a new thread to execute FILE_NAME. */
   ch_info->child_tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
-  /* Waiting to load */
-  sema_down(&(thread_current()->wait_child));
   /* Push Child's struct in Parent's list */
   list_push_back(&thread_current()->children, &(ch_info->elem));
+  /* Waiting to load */
+  sema_down(&(ch_info->sem));
   if (ch_info->child_tid == TID_ERROR)
     palloc_free_page (fn_copy);
     return TID_ERROR;
@@ -106,7 +109,7 @@ static void start_process (void *pe_info_) {
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(pe_info, &if_.eip, &if_.esp);
 
-  sema_up(&(thread_current()->parent->wait_child));
+  sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
   /* If load failed, quit. */
   if (!success)
     thread_exit ();
@@ -122,9 +125,9 @@ static void start_process (void *pe_info_) {
 }
 
 /* finds child threads PEInfo struct by threads TID*/
-struct child_info* get_child_struct(tid_t child_tid UNUSED) {
+struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED) {
   struct list_elem* e;
-  for (e = list_begin(&(thread_current()->children)); e != list_end(&(thread_current()->children)); e = list_next(e)) {
+  for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
       if(ch_info->child_tid = child_tid)
         return ch_info;
@@ -133,9 +136,9 @@ struct child_info* get_child_struct(tid_t child_tid UNUSED) {
 }
 
 /* removes child threads PEInfo struct by threads TID*/
-struct child_info* remove_child_struct(tid_t child_tid UNUSED) {
+struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSED) {
   struct list_elem* e;
-  for (e = list_begin(&(thread_current()->children)); e != list_end(&(thread_current()->children)); e = list_next(e)) {
+  for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
       if(ch_info->child_tid = child_tid) 
         return list_remove(&ch_info->elem);
@@ -153,15 +156,16 @@ struct child_info* remove_child_struct(tid_t child_tid UNUSED) {
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int process_wait (tid_t child_tid UNUSED) {
-  struct child_info* ch_info = get_child_struct(child_tid);
+  struct child_info* ch_info = get_child_struct(thread_current(), child_tid);
 
   if(ch_info == NULL || ch_info->wait_status == WAITING) 
     return -1;
 
   ch_info->wait_status = WAITING;
-  sema_down(&(thread_current()->wait_child));
-  remove_child_struct(child_tid);
-  return thread_current()->exit_code;
+  sema_down(&(ch_info->sem));
+  int ret_stat = ch_info->exit_status;
+  remove_child_struct(thread_current(), child_tid);
+  return ret_stat;
 }
 
 /* Free the current process's resources. */
@@ -187,8 +191,9 @@ void process_exit (void) {
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  // sema_up (&temporary);
-  sema_up(&(thread_current()->parent->wait_child));
+  child_info* ch_info = get_child_struct(thread_current()->parent, thread_tid());
+  ch_info->exit_status = thread_current()->exit_code;
+  sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
 }
 
 /* Sets up the CPU for running user code in the current

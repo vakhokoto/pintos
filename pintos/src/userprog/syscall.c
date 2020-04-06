@@ -1,8 +1,10 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "lib/user/syscall.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 
@@ -11,7 +13,7 @@ static void syscall_handler (struct intr_frame *);
 int handle_practice(int i);
 void handle_halt(void);
 void handle_exit(int status);
-void handle_exec(const char* cmd_line);
+tid_t handle_exec(const char* cmd_line);
 int handle_wait(int pid);
 /* syscalls part 2 */
 bool handle_create(const char *file, unsigned initial_size);
@@ -45,7 +47,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       break;
     }case SYS_EXEC: {
       const char* cmd_line = (const char*)argv;
-      handle_exec(cmd_line); 
+      f->eax = handle_exec(cmd_line); 
       break;
     }case SYS_WAIT: {
       int pid = *(int*)argv;
@@ -108,12 +110,12 @@ void handle_exit(int status) {
   thread_exit();
 }
 
-void handle_exec(const char* cmd_line) {
-  // process_execute(cmd_line);
+tid_t handle_exec(const char* cmd_line) {
+  return process_execute(cmd_line);
 }
 
 int handle_wait(int pid) {
-  // waitpid();
+  return process_wait(pid);
 }
 
 bool handle_create(const char *file, unsigned initial_size) {

@@ -97,7 +97,6 @@ struct thread
 
     /* For Child thread */
     struct list children;               /* List for children structs.*/
-    struct semaphore wait_child;        /* lock for waiting child */
     struct thread* parent;              /* to reach exit code */
     int exit_code;
    
