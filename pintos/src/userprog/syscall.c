@@ -158,25 +158,51 @@ bool handle_remove(const char *filename) {
   return true; 
 }
 
-/* couts the size of file from struct file * */
+/* couts the size of file from struct file * 
+  by iterating through the list till the end and
+  counting the sum of the struct inode_disk -> length in the way */
 int count_size(struct file *file){
-  // need declaration 
-  return 0;
+  /* inode list */
+  struct inode *inode = file -> inode;
+
+  /* size of file */
+  int size = 0;
+
+  while (inode != NULL){
+    size += inode -> data.length;
+
+    /* next block */
+    inode = (struct inode *) inode -> elem.next;
+  }
+
+  return size;
 }
 
 /* opens file with FILENAME and returns 
   file desctiptor of that and if there is no file 
   with FILENAME than returns -1 */
 int handle_open(const char *filename) {
+  ASSERT (strlen(filename) <= 14);
+
   lock_acquire(&file_lock);
+
+  /* file descriptor */
+  int new_file_fd = -1;
+
+  /* creating file */
   struct file *new_file = filesys_open(filename);
+
+  /* return -1 if file can't be created */
   if (new_file == NULL){
     lock_release(&file_lock);
-    return -1;
+    return new_file_fd;
   }
+
+  /* getting current thread/process */
   struct thread *cur_thread = thread_current();
+
+  /* finding next file descriptor */
   struct list_elem *cur_last_elem = list_back(&cur_thread -> file_list);
-  int new_file_fd = -1;
 
   file_info_t *opened_file = malloc(sizeof(file_info_t));
 
@@ -187,6 +213,7 @@ int handle_open(const char *filename) {
     new_file_fd = f_info -> fd + 1;
   }
 
+  /* storing file data in thread files list */
   opened_file -> fd = new_file_fd;
   opened_file -> file = new_file;
   opened_file -> size = count_size(new_file);
