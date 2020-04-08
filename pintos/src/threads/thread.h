@@ -112,10 +112,10 @@ struct thread
     /* list of files opened */
     struct list file_list;
    
-#ifdef USERPROG
+//#ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-#endif
+//#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

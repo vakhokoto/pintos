@@ -246,7 +246,10 @@ int handle_read(int fd, void* buffer, unsigned size) {
     int i = 0;
     while(i < size){
       uint8_t key = input_getc();
-      *(stdio_buffer + i) = key; 
+      if (!put_user((char*)stdio_buffer + i, key)){
+        lock_release(&file_lock);
+        return -1;
+      }
       i++;
     }
   } else {
@@ -255,7 +258,6 @@ int handle_read(int fd, void* buffer, unsigned size) {
     ASSERT(file_info == NULL &&file_info -> file == NULL);
     file_read(file_info -> file, buffer, size);
   }
-  lock_release(&file_lock);
   // Read from file
   
 }
@@ -321,7 +323,17 @@ bool buffer_available(void* buffer, unsigned size){
   if(is_kernel_vaddr((char*)buffer + size)){
     return false;
   }
-  return true;
+  bool result = true;
+  
+  /* current thread */
+  struct thread *cur_thread = thread_current();
+
+  for (char *address = buffer; address < (char*) buffer + size; address += PGSIZE){
+    if (pagedir_get_page(cur_thread->pagedir, address) == NULL){
+      result = false;
+    }
+  }
+  return result;
 }
 
 
