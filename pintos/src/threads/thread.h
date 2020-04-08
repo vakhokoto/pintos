@@ -81,7 +81,7 @@ typedef int tid_t;
    the position to which all data is read */
 typedef struct file_info_t{
    struct list_elem elem;
-   int fd, pos;
+   int fd, size;
    struct file *file;
 } file_info_t;
 

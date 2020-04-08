@@ -21,6 +21,7 @@ bool handle_remove(const char *file);
 int handle_open(const char *file);
 int handle_filesize(int fd);
 int handle_write(int fd, const void *buffer, unsigned size);
+int handle_read(int fd, void *buffer, unsigned size);
 void handle_seek(int fd, unsigned position);
 unsigned handle_tell(int fd);
 void handle_close(int fd);
@@ -85,6 +86,12 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       unsigned size = *(unsigned*)(argv + sizeof fd + sizeof buffer);
       f->eax = handle_write(fd, buffer, size); 
       break;
+    }case SYS_READ: {
+      int fd = *(int*)argv;
+      void* buffer = (void*)(argv + sizeof fd);
+      unsigned size = *(unsigned*)(argv + sizeof fd + sizeof buffer);
+      f->eax = handle_read(fd, buffer, size); 
+      break;
     }case SYS_SEEK: {
       int fd = *(int*)argv;
       unsigned position = (unsigned)(argv + sizeof fd);
@@ -128,8 +135,10 @@ int handle_wait(int pid) {
 }
 
 bool handle_create(const char *filename, unsigned initial_size) {
-
-  return filesys_create(filename, initial_size);
+  lock_acquire(&file_lock);
+  bool is_created = filesys_create(filename, initial_size);
+  lock_release(&file_lock);
+  return is_created;
 }
 
 
@@ -149,10 +158,41 @@ bool handle_remove(const char *filename) {
   return true; 
 }
 
+int count_size(struct file *file){
+  // need declaration 
+  return 0;
+}
+
 int handle_open(const char *filename) {
-  // need lock?
-  struct file *cur_file = filesys_open(filename);
-  // struct thread *cur_thread = 
+  lock_acquire(&file_lock);
+  struct file *new_file = filesys_open(filename);
+  if (new_file == NULL){
+    lock_release(&file_lock);
+    return -1;
+  }
+  struct thread *cur_thread = thread_current();
+  struct list_elem *cur_last_elem = list_back(&cur_thread -> file_list);
+  int new_file_fd = -1;
+
+  file_info_t *opened_file = malloc(sizeof(file_info_t));
+
+  if (cur_last_elem == NULL){
+    new_file_fd = 3;
+  } else {
+    file_info_t *f_info = list_entry(cur_last_elem, file_info_t, elem);
+    new_file_fd = f_info -> fd + 1;
+  }
+
+  opened_file -> fd = new_file_fd;
+  opened_file -> file = new_file;
+  opened_file -> size = count_size(new_file);
+  new_file -> pos = 0;
+
+  list_push_back(&cur_thread -> file_list, &opened_file -> elem);
+
+  lock_release(&file_lock);
+
+  return new_file_fd;
 }
 
 int handle_filesize(int fd) {
@@ -169,6 +209,11 @@ int handle_filesize(int fd) {
 
 
 int handle_write(int fd, const void *buffer, unsigned size) {
+  
+}
+
+
+int handle_read(int fd, void *buffer, unsigned size) {
   
 }
 
