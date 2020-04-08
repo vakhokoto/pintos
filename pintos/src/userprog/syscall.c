@@ -25,7 +25,12 @@ void handle_seek(int fd, unsigned position);
 unsigned handle_tell(int fd);
 void handle_close(int fd);
 
+
+struct lock file_lock;
+
+
 void syscall_init (void) {
+  lock_init(&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -98,7 +103,6 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 // Handle Syscalls Here:
-
 int handle_practice(int i) {
   return ++i;
 }
@@ -122,13 +126,19 @@ int handle_wait(int pid) {
 }
 
 bool handle_create(const char *filename, unsigned initial_size) {
-  // need lock?
+
   return filesys_create(filename, initial_size);
 }
 
 bool handle_remove(const char *filename) {
-  // need lock?
-  return filesys_remove(filename);
+  lock_acquire(&file_lock);
+  bool removed = filesys_remove(filename);
+  lock_release(&file_lock);
+
+  if (!removed){
+    perror("File Removed Unsuccessfully\n");
+  }
+  return true; 
 }
 
 int handle_open(const char *filename) {
