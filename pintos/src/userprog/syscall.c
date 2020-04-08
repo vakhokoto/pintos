@@ -158,26 +158,6 @@ bool handle_remove(const char *filename) {
   return true; 
 }
 
-/* couts the size of file from struct file * 
-  by iterating through the list till the end and
-  counting the sum of the struct inode_disk -> length in the way */
-int count_size(struct file *file){
-  /* inode list */
-  struct inode *inode = file -> inode;
-
-  /* size of file */
-  int size = 0;
-
-  while (inode != NULL){
-    size += inode -> data.length;
-
-    /* next block */
-    inode = (struct inode *) inode -> elem.next;
-  }
-
-  return size;
-}
-
 /* opens file with FILENAME and returns 
   file desctiptor of that and if there is no file 
   with FILENAME than returns -1 */
@@ -216,8 +196,7 @@ int handle_open(const char *filename) {
   /* storing file data in thread files list */
   opened_file -> fd = new_file_fd;
   opened_file -> file = new_file;
-  opened_file -> size = count_size(new_file);
-  new_file -> pos = 0;
+  opened_file -> size = file_length(new_file);
 
   list_push_back(&cur_thread -> file_list, &opened_file -> elem);
 
@@ -232,15 +211,13 @@ int handle_filesize(int fd) {
   if (file_info == NULL){
     perror("Can't find file with given descriptor\n");
   }
-  int filesize = 1;
-  // TODO
+  int filesize = file_info -> size;
 
   return filesize;
 }
 
 
 int handle_write(int fd, const void *buffer, unsigned size) {
-  
 }
 
 
