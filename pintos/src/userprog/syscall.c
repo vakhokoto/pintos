@@ -26,6 +26,8 @@ void handle_seek(int fd, unsigned position);
 unsigned handle_tell(int fd);
 void handle_close(int fd);
 
+struct file_info_t* get_file_info(int fd, struct list file_list);
+
 
 struct lock file_lock;
 
@@ -139,6 +141,12 @@ bool handle_create(const char *filename, unsigned initial_size) {
   return is_created;
 }
 
+
+/*
+ *  Deletes the file called filename. Returns true if successful,
+ *  false otherwise. A file may be removed regardless of whether it is open or closed, and removing an
+ *  open file does not close it. See Removing an Open File, for details. 
+*/
 bool handle_remove(const char *filename) {
   lock_acquire(&file_lock);
   bool removed = filesys_remove(filename);
@@ -192,25 +200,75 @@ int handle_open(const char *filename) {
 }
 
 int handle_filesize(int fd) {
-  // need lock?
+  struct thread* cur_thread = thread_current();
+  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  if (file_info == NULL){
+    perror("Can't find file with given descriptor\n");
+  }
+  int filesize = 1;
+  // TODO
+
+  return filesize;
 }
+
 
 int handle_write(int fd, const void *buffer, unsigned size) {
   
 }
 
+
 int handle_read(int fd, void *buffer, unsigned size) {
   
 }
 
+/*
+ *  Changes the next byte to be read or written 
+ *  in open file fd to position, expressed in bytes from the beginning of the file.
+ */
 void handle_seek(int fd, unsigned position) {
+  struct thread* cur_thread = thread_current();
 
+  lock_acquire(&file_lock);
+  
+  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  if (file_info == NULL || file_info -> file == NULL){
+    perror("Can't find file with given descriptor\n");
+  }
+
+  file_seek (file_info -> file, position);
+
+  lock_release(&file_lock);
 }
 
-unsigned handle_tell(int fd) {
 
+/*
+ * Returns the position of the next byte to be read or written in
+ *  open file fd, expressed in bytes from the beginning of the file.
+*/
+unsigned handle_tell(int fd) {
+  struct thread* cur_thread = thread_current();
+
+  lock_acquire(&file_lock);
+  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+
+  unsigned pos = file_tell (file_info -> file);
+
+  lock_release(&file_lock);
+
+  return pos;
 }
 
 void handle_close(int fd) {
 
+}
+
+/* Finds file info structure by its file descriptor  */ 
+struct file_info_t* get_file_info(int fd, struct list file_list){
+  struct list_elem* e;
+  for (e = list_begin(&file_list); e != list_end(&file_list); e = list_next(e)) {
+      file_info_t* file_info = list_entry(e, file_info_t, elem);
+      if(file_info -> fd == fd)
+        return file_info;
+  }
+  return NULL;
 }
