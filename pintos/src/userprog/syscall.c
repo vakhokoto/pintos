@@ -150,11 +150,15 @@ bool handle_remove(const char *filename) {
   return true; 
 }
 
+/* couts the size of file from struct file * */
 int count_size(struct file *file){
   // need declaration 
   return 0;
 }
 
+/* opens file with FILENAME and returns 
+  file desctiptor of that and if there is no file 
+  with FILENAME than returns -1 */
 int handle_open(const char *filename) {
   lock_acquire(&file_lock);
   struct file *new_file = filesys_open(filename);
