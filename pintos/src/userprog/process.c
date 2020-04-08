@@ -129,7 +129,7 @@ struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED) 
   struct list_elem* e;
   for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
-      if(ch_info->child_tid = child_tid)
+      if(ch_info->child_tid == child_tid)
         return ch_info;
   }
   return NULL;
@@ -140,7 +140,7 @@ struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSE
   struct list_elem* e;
   for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
-      if(ch_info->child_tid = child_tid) 
+      if(ch_info->child_tid == child_tid) 
         return list_remove(&ch_info->elem);
   }
   return NULL;

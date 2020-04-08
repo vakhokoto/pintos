@@ -56,7 +56,8 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_CREATE: {
       const char* file = (const char*)argv;
       unsigned initial_size = *(unsigned*)(argv + sizeof file);
-      f->eax = handle_create(file, initial_size); break;
+      f->eax = handle_create(file, initial_size);
+      break;
     }case SYS_REMOVE: {
       const char* file = (const char*)argv;
       f->eax = handle_remove(file); 
@@ -117,19 +118,19 @@ int handle_wait(int pid) {
   return process_wait(pid);
 }
 
-bool handle_create(const char *file, unsigned initial_size) {
+bool handle_create(const char *filename, unsigned initial_size) {
   // need lock?
-  // return filesys_create(file, initial_size);
+  return filesys_create(filename, initial_size);
 }
 
-bool handle_remove(const char *file) {
+bool handle_remove(const char *filename) {
   // need lock?
-  // return filesys_remove(file);
+  return filesys_remove(filename);
 }
 
-int handle_open(const char *file) {
+int handle_open(const char *filename) {
   // need lock?
-  // struct file *file_reopen (struct file *);
+  struct file *cur_file = filesys_open(filename);
 }
 
 int handle_filesize(int fd) {
