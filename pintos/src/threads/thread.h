@@ -76,6 +76,15 @@ typedef int tid_t;
    the `magic' member of the running thread's `struct thread' is
    set to THREAD_MAGIC.  Stack overflow will normally change this
    value, triggering the assertion. */
+
+/* store information of file per process 
+   the position to which all data is read */
+typedef struct file_info_t{
+   struct list_elem elem;
+   int fd, pos;
+   struct file *file;
+} file_info_t;
+
 /* The `elem' member has a dual purpose.  It can be an element in
    the run queue (thread.c), or it can be an element in a
    semaphore wait list (synch.c).  It can be used these two ways
@@ -99,6 +108,9 @@ struct thread
     struct list children;               /* List for children structs.*/
     struct thread* parent;              /* to reach exit code */
     int exit_code;
+
+    /* list of files opened */
+    struct list file_list;
    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
