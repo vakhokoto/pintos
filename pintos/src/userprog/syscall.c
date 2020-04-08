@@ -163,7 +163,8 @@ bool handle_remove(const char *filename) {
   file desctiptor of that and if there is no file 
   with FILENAME than returns -1 */
 int handle_open(const char *filename) {
-  ASSERT (strlen(filename) <= 14);
+  ASSERT (strlen(filename) > 0 && strlen(filename) <= 14);
+  ASSERT (buffer_available(filename, strlen(filename)));
 
   lock_acquire(&file_lock);
 
@@ -317,11 +318,9 @@ struct file_info_t* get_file_info(int fd, struct list file_list){
  * Returns false otherwise.
  */
 bool buffer_available(void* buffer, unsigned size){
-  if(is_kernel_vaddr((void*)buffer + size)){
+  if(is_kernel_vaddr((char*)buffer + size)){
     return false;
   }
-
-
   return true;
 }
 
