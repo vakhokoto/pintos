@@ -29,6 +29,8 @@ void syscall_init (void) {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+
+
 static void syscall_handler (struct intr_frame *f UNUSED) {
   uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
   printf("System call number: %d\n", SYSCALL_NUM);
@@ -132,6 +134,7 @@ bool handle_remove(const char *filename) {
 int handle_open(const char *filename) {
   // need lock?
   struct file *cur_file = filesys_open(filename);
+  // struct thread *cur_thread = 
 }
 
 int handle_filesize(int fd) {
