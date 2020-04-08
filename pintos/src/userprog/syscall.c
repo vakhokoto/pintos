@@ -7,6 +7,7 @@
 #include "lib/user/syscall.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 /* syscalls part 1 */
@@ -27,7 +28,7 @@ unsigned handle_tell(int fd);
 void handle_close(int fd);
 
 struct file_info_t* get_file_info(int fd, struct list file_list);
-
+bool buffer_available(void* buffer, unsigned size);
 
 struct lock file_lock;
 
@@ -198,9 +199,7 @@ int handle_open(const char *filename) {
 int handle_filesize(int fd) {
   struct thread* cur_thread = thread_current();
   file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
-  if (file_info == NULL){
-    perror("Can't find file with given descriptor\n");
-  }
+  ASSERT(file_info != NULL);
   int filesize = 1;
   // TODO
 
@@ -209,11 +208,45 @@ int handle_filesize(int fd) {
 
 
 int handle_write(int fd, const void *buffer, unsigned size) {
-  
+  ASSERT(buffer != NULL && size >= 0);
+  ASSERT(buffer_available(buffer, size));
+  //ASSERT(put_user(buffer + size));
+
+
 }
 
 
-int handle_read(int fd, void *buffer, unsigned size) {
+/**
+ * Reads size bytes from the file open as fd into buffer. Returns the number
+ * of bytes actually read (0 at end of file), or -1 if the file could not be read 
+ * (due to a condition other than end of file). Fd 0 reads from the keyboard using
+ * input_getc().
+ */
+int handle_read(int fd, void* buffer, unsigned size) {
+  ASSERT(buffer != NULL && size >= 0); 
+  
+
+  lock_acquire(&file_lock);
+
+  ASSERT(buffer_available(buffer, size));
+  //ASSERT(get_user(buffer + size));
+
+  if (fd == 0){
+    char* stdio_buffer = (char*)buffer;
+    int i = 0;
+    while(i < size){
+      uint8_t key = input_getc();
+      *(stdio_buffer + i) = key; 
+      i++;
+    }
+  } else {
+    struct thread* cur_thread = thread_current();
+    file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+    ASSERT(file_info == NULL &&file_info -> file == NULL);
+    file_read(file_info -> file, buffer, size);
+  }
+  lock_release(&file_lock);
+  // Read from file
   
 }
 
@@ -227,9 +260,7 @@ void handle_seek(int fd, unsigned position) {
   lock_acquire(&file_lock);
   
   file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
-  if (file_info == NULL || file_info -> file == NULL){
-    perror("Can't find file with given descriptor\n");
-  }
+  ASSERT(file_info == NULL &&file_info -> file == NULL);
 
   file_seek (file_info -> file, position);
 
@@ -258,7 +289,10 @@ void handle_close(int fd) {
 
 }
 
-/* Finds file info structure by its file descriptor  */ 
+/**
+ * Finds file info structure by its file descriptor 
+ * Returns file_info_t structure pointer.
+ */ 
 struct file_info_t* get_file_info(int fd, struct list file_list){
   struct list_elem* e;
   for (e = list_begin(&file_list); e != list_end(&file_list); e = list_next(e)) {
@@ -267,4 +301,43 @@ struct file_info_t* get_file_info(int fd, struct list file_list){
         return file_info;
   }
   return NULL;
+}
+
+/**
+ * Returns true if size amount of bytes is available in the buffer
+ * Returns false otherwise.
+ */
+bool buffer_available(void* buffer, unsigned size){
+  if(is_kernel_vaddr((void*)buffer + size)){
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/* Reads a byte at user virtual address UADDR.
+ * UADDR must be below PHYS_BASE.
+ * Returns the byte value if successful, -1 if a segfault
+ * occurred. */
+static int get_user (const uint8_t *uaddr){
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+  : "=&a" (result) : "m" (*uaddr));
+  return result;
+}
+
+
+
+/* Writes BYTE to user address UDST.
+ * UDST must be below PHYS_BASE.
+ * Returns true if successful, false
+ * if a segfault occurred. 
+ */
+static bool put_user (uint8_t *udst, uint8_t byte){
+  int error_code;
+  asm ("movl $1f, %0; movb %b2, %1; 1:"
+  : "=&a" (error_code), "=m" (*udst) : "q" (byte));
+  return error_code != -1;
 }
