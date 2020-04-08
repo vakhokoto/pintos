@@ -95,7 +95,6 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 // Handle Syscalls Here:
-
 int handle_practice(int i) {
   return ++i;
 }
