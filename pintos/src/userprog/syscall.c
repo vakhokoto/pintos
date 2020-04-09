@@ -8,6 +8,9 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/vaddr.h"
+#include "lib/kernel/stdio.h"
+
+#define PIECE_SIZE 100
 
 static void syscall_handler (struct intr_frame *);
 /* syscalls part 1 */
@@ -219,10 +222,50 @@ int handle_filesize(int fd) {
 }
 
 
+/* Writes SIZE number bytes from  buffer to file with FD descriptor 
+  number. If FD == 1 than it's the special case and writing 
+  should happen to the console with breaking buffer into smaller parts */
 int handle_write(int fd, const void *buffer, unsigned size) {
   ASSERT(buffer != NULL && size >= 0);
   ASSERT(buffer_available(buffer, size));
-  //ASSERT(put_user(buffer + size));
+  ASSERT(fd != 0);
+
+  lock_acquire(&file_lock);
+
+  int written_bytes = 0;
+
+  if (fd == 1){
+    /* number of bytes yet written to console */
+    int num_written = 0;
+
+    /* writing by pieces */
+    while (num_written < size){
+      /* bytes left to write */
+      int bytes_left = size - num_written;
+      /* bytes to be written in this attempt */
+      int cur_write_size = (PIECE_SIZE < bytes_left ?PIECE_SIZE:bytes_left);
+
+      /* putting bytes into console */
+      putbuf((char *)buffer + num_written, cur_write_size);
+
+      num_written += cur_write_size;
+    }
+
+    written_bytes = size;
+  } else {
+    /* current thread */
+    struct thread *cur_thread = thread_current();
+    /* file_info where the data should be written */
+    file_info_t *output_file = get_file_info(fd, cur_thread -> file_list);
+    ASSERT(output_file != NULL);
+
+    /* writing into file */
+    written_bytes = file_write(output_file -> file, buffer, size);
+  }
+
+  lock_release(&file_lock);
+
+  return written_bytes;
 }
 
 
@@ -332,6 +375,10 @@ bool buffer_available(void* buffer, unsigned size){
     if (pagedir_get_page(cur_thread->pagedir, address) == NULL){
       result = false;
     }
+  }
+
+  if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size) == NULL){
+    result = false;
   }
   return result;
 }
