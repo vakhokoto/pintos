@@ -107,7 +107,7 @@ struct thread
     /* For Child thread */
     struct list children;               /* List for children structs.*/
     struct thread* parent;              /* to reach exit code */
-    int exit_code;
+    int exit_code;                      /* exit code state */
 
     /* list of files opened */
     struct list file_list;

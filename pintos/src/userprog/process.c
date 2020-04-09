@@ -20,7 +20,6 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 
-#define PATH_MAX 14
 
 static thread_func start_process NO_RETURN;
 static bool load (process_execute_info* pe_info, void (**eip) (void), void **esp);
@@ -28,12 +27,15 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line);
 void initialize_child_info(child_info* ch_info);
 struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED);
 struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSED);
+void destroy_file_descriptors(struct thread* cur);
+void destroy_children(struct thread* cur);
 
 
 void initialize_child_info(child_info* ch_info) {
   ch_info->wait_status = !WAITING;
-  ch_info->child_tid = 0;
   ch_info->exit_status = -1;
+  ch_info->child_tid = 0;
+  ch_info->alive = 1;
   sema_init(&(ch_info->sem), 0);
 }
 
@@ -146,6 +148,16 @@ struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSE
   return NULL;
 }
 
+/* deletes all child's structures from cur->children list*/
+void destroy_children(struct thread* cur) {
+  struct list_elem* e = list_begin(&(cur->children));
+  while(!list_empty(&(cur->children))) {
+    // struct child_info* ch_info = list_entry(e, struct child_info, elem);
+    //palloc_free_page(ch_info);     needed?
+    e = list_remove(e);
+  }
+}
+
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -161,21 +173,39 @@ int process_wait (tid_t child_tid UNUSED) {
   if(ch_info == NULL || ch_info->wait_status == WAITING) 
     return -1;
 
+  /* set wating status */
   ch_info->wait_status = WAITING;
-  sema_down(&(ch_info->sem));
-  int ret_stat = ch_info->exit_status;
-  remove_child_struct(thread_current(), child_tid);
-  return ret_stat;
+  
+  /* check if child process is alive - than wait, or continue. */
+  if(ch_info->alive)
+    sema_down(&(ch_info->sem));
+  
+  ASSERT(ch_info->alive);
+  return ch_info->exit_status;
+}
+
+
+/* Closes and deletes all files from cur->file list*/
+void destroy_file_descriptors(struct thread* cur) {
+  struct list_elem* e = list_begin(&(cur->file_list));
+  while(!list_empty(&(cur->file_list))) {
+    struct file_info_t* f_info = list_entry(e, struct file_info_t, elem);
+    file_close(f_info->file);
+    //palloc_free_page(file);     needed?
+    e = list_remove(e);
+  }
 }
 
 /* Free the current process's resources. */
 void process_exit (void) {
-  struct thread *cur = thread_current ();
-  // edited
-  // while(!list_empty(&(thread_current()->children))) {
-  //   list_pop_back(&(thread_current()->children));
-  // }
-  // thread_current()->parent->exit_code = EXITCODE_SUCCESS;
+  struct thread *cur = thread_current();
+
+  /* Destroy the current process's files */
+  destroy_file_descriptors(cur);
+
+  /* Destroy the current process's children */
+  destroy_children(cur);
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   uint32_t *pd = cur->pagedir;
@@ -190,10 +220,19 @@ void process_exit (void) {
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-    }
-  child_info* ch_info = get_child_struct(thread_current()->parent, thread_tid());
-  ch_info->exit_status = thread_current()->exit_code;
-  sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
+  }
+
+  /* update child's struct */
+  child_info* ch_info = get_child_struct(cur->parent, thread_tid());
+  
+  /* noone waits cur thread */
+  if(ch_info == NULL) 
+    return; 
+  ASSERT(ch_info->wait_status == WAITING);
+  /* update parent's referencing struct to cur*/
+  ch_info->alive = 0;
+  ch_info->exit_status = cur->exit_code;
+  sema_up(&(ch_info->sem));
 }
 
 /* Sets up the CPU for running user code in the current
