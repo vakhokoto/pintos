@@ -243,21 +243,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
   int written_bytes = 0;
 
   if (fd == 1){
-    /* number of bytes yet written to console */
-    int num_written = 0;
-
-    /* writing by pieces */
-    while (num_written < size){
-      /* bytes left to write */
-      int bytes_left = size - num_written;
-      /* bytes to be written in this attempt */
-      int cur_write_size = (PIECE_SIZE < bytes_left ?PIECE_SIZE:bytes_left);
-
-      /* putting bytes into console */
-      putbuf(buffer + num_written, cur_write_size);
-
-      num_written += cur_write_size;
-    }
+    putbuf(buffer, size);
 
     written_bytes = size;
   } else {
