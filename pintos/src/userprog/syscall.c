@@ -32,6 +32,8 @@ void handle_close(int fd);
 
 struct file_info_t* get_file_info(int fd, struct list file_list);
 bool buffer_available(void* buffer, unsigned size);
+static bool put_user (uint8_t *udst, uint8_t byte);
+static int get_user (const uint8_t *uaddr);
 
 struct lock file_lock;
 
@@ -389,8 +391,9 @@ bool buffer_available(void* buffer, unsigned size){
   
   /* current thread */
   struct thread *cur_thread = thread_current();
+  char* address = NULL;
 
-  for (char *address = buffer; address < (char*) buffer + size; address += PGSIZE){
+  for (address = buffer; address < (char*) buffer + size; address += PGSIZE){
     if (pagedir_get_page(cur_thread->pagedir, address) == NULL){
       result = false;
     }
