@@ -191,6 +191,8 @@ int handle_open(const char *filename) {
 
   file_info_t *opened_file = malloc(sizeof(file_info_t));
 
+  ASSERT(opened_file != NULL);
+
   if (cur_last_elem == NULL){
     new_file_fd = 3;
   } else {
@@ -341,7 +343,24 @@ unsigned handle_tell(int fd) {
 }
 
 void handle_close(int fd) {
+  ASSERT (fd != 0 && fd != 1);
+  lock_acquire(&file_lock);
 
+  /* current thread */
+  struct thread *thread = thread_current();
+
+  /* file info that should be closed */
+  file_info_t *file = get_file_info(fd, thread -> file_list);
+  if (file != NULL){
+    /* close file */
+    file_close(file -> file);
+
+    list_remove(&file -> elem);
+
+    /* free memory allocated for file information */
+    free(file);
+  }
+  lock_release(&file_lock);
 }
 
 /**
