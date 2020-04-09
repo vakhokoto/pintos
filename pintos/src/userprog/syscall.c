@@ -34,83 +34,82 @@ struct file_info_t* get_file_info(int fd, struct list file_list);
 bool buffer_available(void* buffer, unsigned size);
 static bool put_user (uint8_t *udst, uint8_t byte);
 static int get_user (const uint8_t *uaddr);
+void read_argv(void *src, void *dst, size_t bytes);
 
 struct lock file_lock;
-
 
 void syscall_init (void) {
   lock_init(&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-
-
 static void syscall_handler (struct intr_frame *f UNUSED) {
-  uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
-  printf("System call number: %d\n", SYSCALL_NUM);
-
+  uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];  
   void* argv = f->esp + sizeof (uint32_t); 
+  const char* cmd_line, file;
+  int fd, status, i, pid;
+  const void* buffer;
+  unsigned size;  
   switch(SYSCALL_NUM) {
     case SYS_PRACTICE: {
-      int i = *(int*)argv;
-      f->eax = handle_practice(i); 
+      read_argv(argv, &i, sizeof(i));
+      // f->eax = handle_practice(i); 
       break;
     }case SYS_HALT: {
       handle_halt(); break;
     }case SYS_EXIT: {
-      int status = *(int*)argv;
+      read_argv(argv, &status, sizeof(status));
       handle_exit(status); 
       break;
     }case SYS_EXEC: {
-      const char* cmd_line = (const char*)argv;
-      f->eax = handle_exec(cmd_line); 
+      read_argv(argv, &cmd_line, sizeof(cmd_line));
+      // f->eax = handle_exec(cmd_line); 
       break;
     }case SYS_WAIT: {
-      int pid = *(int*)argv;
-      f->eax = handle_wait(pid); 
+      read_argv(argv, &pid, sizeof(pid));
+      // f->eax = handle_wait(pid); 
       break;
     }case SYS_CREATE: {
-      const char* file = (const char*)argv;
-      unsigned initial_size = *(unsigned*)(argv + sizeof file);
-      f->eax = handle_create(file, initial_size);
+      read_argv(argv, &file, sizeof(file));
+      read_argv(argv + sizeof(file), &size, sizeof(size));
+      // f->eax = handle_create(file, size);
       break;
     }case SYS_REMOVE: {
-      const char* file = (const char*)argv;
-      f->eax = handle_remove(file); 
+      read_argv(argv, &file, sizeof(file));
+      // f->eax = handle_remove(file); 
       break;
     }case SYS_OPEN: {
-      const char* file = (const char*)argv;
-      f->eax = handle_open(file); 
+      read_argv(argv, &file, sizeof(file));
+      // f->eax = handle_open(file); 
       break;
     }case SYS_FILESIZE: {
-      int fd = *(int*)argv;
-      f->eax = handle_filesize(fd); 
+      read_argv(argv, &fd, sizeof(fd));
+      // f->eax = handle_filesize(fd); 
       break;
     }case SYS_WRITE: {
-      int fd = *(int*)argv;
-      const void* buffer = (const void*)(argv + sizeof fd);
-      unsigned size = *(unsigned*)(argv + sizeof fd + sizeof buffer);
-      printf("this is buffer -> %s\n", (char*)buffer);
-      // f->eax = handle_write(fd, buffer, size); 
+      read_argv(argv, &fd, sizeof(fd));
+      read_argv(argv + sizeof(fd), &buffer, sizeof(buffer));
+      read_argv(argv + sizeof(fd) + sizeof(buffer), &size, sizeof(size));
+      f->eax = handle_write(fd, buffer, size);
       break;
     }case SYS_READ: {
-      int fd = *(int*)argv;
-      void* buffer = (void*)(argv + sizeof fd);
-      unsigned size = *(unsigned*)(argv + sizeof fd + sizeof buffer);
-      f->eax = handle_read(fd, buffer, size); 
+      read_argv(argv, &fd, sizeof(fd));
+      read_argv(argv + sizeof(fd), &buffer, sizeof(buffer));
+      read_argv(argv + sizeof(fd) + sizeof(buffer), &size, sizeof(size));
+      // f->eax = handle_read(fd, buffer, size); 
       break;
     }case SYS_SEEK: {
-      int fd = *(int*)argv;
-      unsigned position = (unsigned)(argv + sizeof fd);
-      handle_seek(fd, position); 
+      read_argv(argv, &fd, sizeof(fd));
+      read_argv(argv + sizeof(fd), &size, sizeof(size));
+      // handle_seek(fd, size); 
       break;
     }case SYS_TELL: {
-      int fd = *(int*)argv;
-      f->eax = handle_tell(fd); 
+      read_argv(argv, &fd, sizeof(fd));
+      // f->eax = handle_tell(fd); 
       break;
     }case SYS_CLOSE: {
-      int fd = *(int*)argv;
-      handle_close(fd); 
+      read_argv(argv, &fd, sizeof(fd));
+      // handle_close(fd); 
       break;
     }default:
       printf("Not Recognized syscall."); 
@@ -395,6 +394,12 @@ bool buffer_available(void* buffer, unsigned size){
   return result;
 }
 
+void read_argv(void *src, void *dst, size_t bytes) {
+  int i = 0;
+  while(i < bytes){
+    *(char*)(dst + i) = get_user(src + i++) & 255;
+  }
+}
 
 /* Reads a byte at user virtual address UADDR.
  * UADDR must be below PHYS_BASE.
