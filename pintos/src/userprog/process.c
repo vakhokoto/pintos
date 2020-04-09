@@ -56,11 +56,12 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
       pe_info->argv[i] = malloc(PATH_MAX);
       int len = strlen(token) + 1;
       memcpy(pe_info->argv[i], token, len);
-      printf("aq aris -> %s\n", pe_info -> argv[i]);
+      // printf("aq aris -> %s\n", pe_info -> argv[i]);
       pe_info->tot_len += len;
       token = strtok_r(NULL, " ", &tok_ptr);
       i++;
     }
+    pe_info->tot_len += (pe_info->tot_len + 4) % 4;
 }
 
 /* Starts a new thread running a user program loaded from
@@ -85,7 +86,7 @@ tid_t process_execute (const char *file_name) {
   initialize_process_execute_info(pe_info, fn_copy);
   
   /* Create a new thread to execute FILE_NAME. */
-  ch_info->child_tid = thread_create (file_name, PRI_DEFAULT, start_process, pe_info);
+  ch_info->child_tid = thread_create (pe_info->file_name, PRI_DEFAULT, start_process, pe_info);
   /* Push Child's struct in Parent's list */
   list_push_back(&thread_current()->children, &(ch_info->elem));
   /* Waiting to load */
@@ -559,7 +560,7 @@ setup_stack (void **esp, process_execute_info* pe_info)
       if (success){
         *esp = PHYS_BASE;
         *esp -= pe_info->tot_len;
-        void* pointers[pe_info->argc + 1];
+        void* pointers[pe_info->tot_len];
         int i = 0;
         int offset = 0;
         int len = 0;
@@ -567,26 +568,23 @@ setup_stack (void **esp, process_execute_info* pe_info)
           len = strlen(pe_info->argv[i]) + 1;
           pointers[i] = *esp + offset;
           memcpy(*esp + offset, pe_info->argv[i], len);
-          printf("es erti -> %s\nes ori -> %s\n", pe_info -> argv[i], (char*)(*esp + offset));
           offset += len;
           i++;
         }
 
-        // esp = (void*)((unsigned int)(*esp) & 0xfffffffc);
-
-        *esp -= *(int*)esp % 4;
         *esp -= 4;
-        *(uint8_t*) *esp = 0;
+        *(int*) *esp = 0;
 
-        *esp -= sizeof(char*) * pe_info->argc;
+        *esp -= sizeof(char*) * (pe_info->argc+1);
         i = 0;
         offset = 0;
-        while(i <= pe_info->argc){
-          *((void**)*esp + i*sizeof(char*)) = pointers[i];
+        while(i < pe_info->argc){
+          *((void**)(*esp + i*sizeof(char*))) = pointers[i];
           offset += sizeof(char*);
           i++;
-        }        
+        }     
 
+        *((int*) (*esp + offset)) = 0;
         *esp -= sizeof(char*);
         *((void**) *esp) = (*esp + sizeof(char*));
 
@@ -595,8 +593,6 @@ setup_stack (void **esp, process_execute_info* pe_info)
 
         *esp -= sizeof(void*);
         *((int*) *esp) = 0;
-        printf("return add -> %d\nargc -> %d\nargv[0] -> %s\n", *(int*)*esp, *(int*)(*esp + 4), **(char***)(*esp + 8));
-        
       } else
         palloc_free_page (kpage);
     }
