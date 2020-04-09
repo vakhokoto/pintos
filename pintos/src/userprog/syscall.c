@@ -123,7 +123,7 @@ int handle_practice(int i) {
 }
 
 void handle_halt() {
-  // need to save states?
+  // need to save states??
   shutdown_power_off();
 }
 
@@ -159,8 +159,9 @@ bool handle_remove(const char *filename) {
   bool removed = filesys_remove(filename);
   lock_release(&file_lock);
 
+  ASSERT(removed == 0);
   if (!removed){
-    perror("File Removed Unsuccessfully\n");
+    // perror("File Removed Unsuccessfully\n");
   }
   return true; 
 }
@@ -218,8 +219,9 @@ int handle_open(const char *filename) {
 int handle_filesize(int fd) {
   struct thread* cur_thread = thread_current();
   file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  ASSERT(file_info != NULL);
   if (file_info == NULL){
-    perror("Can't find file with given descriptor\n");
+    // perror("Can't find file with given descriptor\n");
   }
   int filesize = file_info -> size;
 
