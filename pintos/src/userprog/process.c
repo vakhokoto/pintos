@@ -554,6 +554,7 @@ setup_stack (void **esp, process_execute_info* pe_info)
 
         *esp -= sizeof(void*);
         *((int*) *esp) = 0;
+        printf("return add -> %d\nargc -> %d\nargv[0] -> %s\n", *(int*)*esp, *(int*)(*esp + 4), **(char***)(*esp + 8));
         
       } else
         palloc_free_page (kpage);

@@ -129,6 +129,8 @@ void handle_halt() {
 
 void handle_exit(int status) {
   printf("%s: exit(%d)\n", &thread_current ()->name, status);
+  // struct thread *t = thread_current();
+  // t -> exit_code = status;
   thread_exit();
 }
 
