@@ -53,12 +53,10 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
         pe_info->argc = i;
         break;  
       }
-      char temp[PATH_MAX];
+      pe_info->argv[i] = malloc(PATH_MAX);
       int len = strlen(token) + 1;
-      memcpy(temp, token, len);
+      memcpy(pe_info->argv[i], token, len);
       pe_info->tot_len += len;
-      pe_info->argv[i] = temp;
-      
       token = strtok_r(NULL, " ", &tok_ptr);
       i++;
     }
@@ -128,6 +126,7 @@ static void start_process (void *pe_info_) {
 
 /* finds child threads PEInfo struct by threads TID*/
 struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED) {
+  ASSERT(cur != NULL);
   struct list_elem* e;
   for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
@@ -201,10 +200,10 @@ void process_exit (void) {
   struct thread *cur = thread_current();
 
   /* Destroy the current process's files */
-  destroy_file_descriptors(cur);
+  // destroy_file_descriptors(cur);
 
   /* Destroy the current process's children */
-  destroy_children(cur);
+  // destroy_children(cur);
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -226,9 +225,8 @@ void process_exit (void) {
   child_info* ch_info = get_child_struct(cur->parent, thread_tid());
   
   /* noone waits cur thread */
-  if(ch_info == NULL) 
+  if(ch_info == NULL || ch_info->wait_status != WAITING) 
     return; 
-  ASSERT(ch_info->wait_status == WAITING);
   /* update parent's referencing struct to cur*/
   ch_info->alive = 0;
   ch_info->exit_status = cur->exit_code;

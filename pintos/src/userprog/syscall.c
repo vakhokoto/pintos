@@ -253,7 +253,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
       int cur_write_size = (PIECE_SIZE < bytes_left ?PIECE_SIZE:bytes_left);
 
       /* putting bytes into console */
-      putbuf((char *)buffer + num_written, cur_write_size);
+      putbuf(buffer + num_written, cur_write_size);
 
       num_written += cur_write_size;
     }
