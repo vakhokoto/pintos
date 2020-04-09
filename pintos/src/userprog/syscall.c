@@ -90,7 +90,8 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       int fd = *(int*)argv;
       const void* buffer = (const void*)(argv + sizeof fd);
       unsigned size = *(unsigned*)(argv + sizeof fd + sizeof buffer);
-      f->eax = handle_write(fd, buffer, size); 
+      printf("this is buffer -> %s\n", (char*)buffer);
+      // f->eax = handle_write(fd, buffer, size); 
       break;
     }case SYS_READ: {
       int fd = *(int*)argv;
@@ -129,8 +130,7 @@ void handle_halt() {
 
 void handle_exit(int status) {
   printf("%s: exit(%d)\n", &thread_current ()->name, status);
-  // struct thread *t = thread_current();
-  // t -> exit_code = status;
+  thread_current()->exit_code = status;
   thread_exit();
 }
 
@@ -254,7 +254,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
       int cur_write_size = (PIECE_SIZE < bytes_left ?PIECE_SIZE:bytes_left);
 
       /* putting bytes into console */
-      putbuf((char *)buffer + num_written, cur_write_size);
+      putbuf(buffer + num_written, cur_write_size);
 
       num_written += cur_write_size;
     }
