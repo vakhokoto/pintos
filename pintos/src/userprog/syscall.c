@@ -192,7 +192,7 @@ bool handle_remove(const char *filename) {
   file desctiptor of that and if there is no file 
   with FILENAME than returns -1 */
 int handle_open(const char *filename) {
-  if(!buffer_available(filename, 0) || !(strlen(filename) > 0 && strlen(filename) <= 14)){
+  if(!buffer_available(filename, 0) || !(strlen(filename) >= 0 && strlen(filename) <= 14)){
     handle_exit(-1);
     return false;
   }
