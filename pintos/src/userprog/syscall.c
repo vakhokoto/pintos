@@ -30,7 +30,7 @@ void handle_seek(int fd, unsigned position);
 unsigned handle_tell(int fd);
 void handle_close(int fd);
 
-struct file_info_t* get_file_info(int fd, struct list file_list);
+struct file_info_t* get_file_info(int fd, struct list *file_list);
 bool buffer_available(void* buffer, unsigned size);
 static bool put_user (uint8_t *udst, uint8_t byte);
 static int get_user (const uint8_t *uaddr);
@@ -251,7 +251,7 @@ int handle_open(const char *filename) {
 
 int handle_filesize(int fd) {
   struct thread* cur_thread = thread_current();
-  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
   if (file_info == NULL){
     handle_exit(-1);
   }
@@ -282,7 +282,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
     /* current thread */
     struct thread *cur_thread = thread_current();
     /* file_info where the data should be written */
-    file_info_t *output_file = get_file_info(fd, cur_thread -> file_list);
+    file_info_t *output_file = get_file_info(fd, &cur_thread -> file_list);
     if (output_file == NULL){
       handle_exit(-1);
       return false;
@@ -324,7 +324,7 @@ int handle_read(int fd, void* buffer, unsigned size) {
     }
   } else {
     struct thread* cur_thread = thread_current();
-    file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+    file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
     if (file_info == NULL || file_info -> file == NULL){
       lock_release(&file_lock);
       return -1;
@@ -344,7 +344,7 @@ void handle_seek(int fd, unsigned position) {
 
   lock_acquire(&file_lock);
   
-  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
   if (!(file_info == NULL &&file_info -> file == NULL)){
     handle_exit(-1);
     return;
@@ -364,7 +364,7 @@ unsigned handle_tell(int fd) {
   struct thread* cur_thread = thread_current();
 
   lock_acquire(&file_lock);
-  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
 
   if (file_info == NULL){
     handle_exit(-1);
@@ -389,7 +389,7 @@ void handle_close(int fd) {
   struct thread *thread = thread_current();
 
   /* file info that should be closed */
-  file_info_t *file = get_file_info(fd, thread -> file_list);
+  file_info_t *file = get_file_info(fd, &thread -> file_list);
   if (file != NULL){
     /* close file */
     file_close(file -> file);
@@ -406,13 +406,13 @@ void handle_close(int fd) {
  * Finds file info structure by its file descriptor 
  * Returns file_info_t structure pointer.
  */ 
-struct file_info_t* get_file_info(int fd, struct list file_list){
+struct file_info_t* get_file_info(int fd, struct list *file_list){
   /* if  empty close automatically */
-  if (list_empty(&file_list)){
+  if (list_empty(file_list)){
     return NULL;
   }
   struct list_elem* e;
-  for (e = list_begin(&file_list); e != list_end(&file_list); e = list_next(e)) {
+  for (e = list_begin(file_list); e != list_end(file_list); e = list_next(e)) {
       file_info_t* file_info = list_entry(e, file_info_t, elem);
       if(file_info -> fd == fd)
         return file_info;
