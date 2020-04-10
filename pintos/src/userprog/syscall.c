@@ -425,7 +425,7 @@ struct file_info_t* get_file_info(int fd, struct list *file_list){
  * Returns false otherwise.
  */
 bool buffer_available(void* buffer, unsigned size){
-  if(is_kernel_vaddr((char*)buffer + size) || buffer == NULL){
+  if(buffer == NULL || is_kernel_vaddr((char*)buffer + size)){
     return false;
   }
   bool result = true;
@@ -440,7 +440,7 @@ bool buffer_available(void* buffer, unsigned size){
     }
   }
 
-  if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size) == NULL){
+  if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size - 1) == NULL){
     result = false;
   }
   return result;
