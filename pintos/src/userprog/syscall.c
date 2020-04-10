@@ -192,8 +192,7 @@ bool handle_remove(const char *filename) {
   file desctiptor of that and if there is no file 
   with FILENAME than returns -1 */
 int handle_open(const char *filename) {
-  // ASSERT (strlen(filename) > 0 && strlen(filename) <= 14);
-  if(!buffer_available(filename, 0)){
+  if(!buffer_available(filename, 0) || !(strlen(filename) > 0 && strlen(filename) <= 14)){
     handle_exit(-1);
     return false;
   }
@@ -225,7 +224,10 @@ int handle_open(const char *filename) {
 
   file_info_t *opened_file = malloc(sizeof(file_info_t));
 
-  ASSERT(opened_file != NULL);
+  if (opened_file == NULL){
+    handle_exit(-1);
+    return -1;
+  }
 
   if (cur_last_elem == NULL){
     new_file_fd = 3;
@@ -250,9 +252,8 @@ int handle_open(const char *filename) {
 int handle_filesize(int fd) {
   struct thread* cur_thread = thread_current();
   file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
-  ASSERT(file_info != NULL);
   if (file_info == NULL){
-    // perror("Can't find file with given descriptor\n");
+    handle_exit(-1);
   }
   int filesize = file_info -> size;
 
@@ -264,9 +265,10 @@ int handle_filesize(int fd) {
   number. If FD == 1 than it's the special case and writing 
   should happen to the console with breaking buffer into smaller parts */
 int handle_write(int fd, const void *buffer, unsigned size) {
-  ASSERT(buffer != NULL && size >= 0);
-  ASSERT(buffer_available(buffer, size));
-  ASSERT(fd != 0);
+  if(!buffer_available(buffer, 0) || fd == 0){
+    handle_exit(-1);
+    return false;
+  }
 
   lock_acquire(&file_lock);
 
@@ -281,7 +283,10 @@ int handle_write(int fd, const void *buffer, unsigned size) {
     struct thread *cur_thread = thread_current();
     /* file_info where the data should be written */
     file_info_t *output_file = get_file_info(fd, cur_thread -> file_list);
-    ASSERT(output_file != NULL);
+    if (output_file == NULL){
+      handle_exit(-1);
+      return false;
+    }
 
     /* writing into file */
     written_bytes = file_write(output_file -> file, buffer, size);
@@ -299,14 +304,14 @@ int handle_write(int fd, const void *buffer, unsigned size) {
  * (due to a condition other than end of file). Fd 0 reads from the keyboard using
  * input_getc().
  */
-int handle_read(int fd, void* buffer, unsigned size) {
-  ASSERT(buffer != NULL && size >= 0); 
-  
+int handle_read(int fd, void* buffer, unsigned size) {  
 
   lock_acquire(&file_lock);
 
-  ASSERT(buffer_available(buffer, size));
-  //ASSERT(get_user(buffer + size));
+  if (!buffer_available(buffer, size)){
+    handle_exit(-1);
+    return -1;
+  }
 
   if (fd == 0){
     char* stdio_buffer = (char*)buffer;
@@ -339,7 +344,10 @@ void handle_seek(int fd, unsigned position) {
   lock_acquire(&file_lock);
   
   file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
-  ASSERT(file_info == NULL &&file_info -> file == NULL);
+  if (!(file_info == NULL &&file_info -> file == NULL)){
+    handle_exit(-1);
+    return;
+  }
 
   file_seek (file_info -> file, position);
 
@@ -357,6 +365,11 @@ unsigned handle_tell(int fd) {
   lock_acquire(&file_lock);
   file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
 
+  if (file_info == NULL){
+    handle_exit(-1);
+    return -1;
+  }
+
   unsigned pos = file_tell (file_info -> file);
 
   lock_release(&file_lock);
@@ -365,7 +378,10 @@ unsigned handle_tell(int fd) {
 }
 
 void handle_close(int fd) {
-  ASSERT (fd != 0 && fd != 1);
+  if (!(fd != 0 && fd != 1)){
+    handle_exit(-1);
+    return;
+  }
   lock_acquire(&file_lock);
 
   /* current thread */
