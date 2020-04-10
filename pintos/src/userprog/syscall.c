@@ -44,12 +44,16 @@ void syscall_init (void) {
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
-  uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];  
+  if(!buffer_available(f->esp, sizeof(int))){
+    handle_exit(-1);
+    return;
+  } 
+  uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
   void* argv = f->esp + sizeof (uint32_t); 
   const char* cmd_line, file;
   int fd, status, i, pid;
   const void* buffer;
-  unsigned size;  
+  unsigned size;
   switch(SYSCALL_NUM) {
     case SYS_PRACTICE: {
       read_argv(argv, &i, sizeof(i));
@@ -57,7 +61,8 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       break;
     }case SYS_HALT: {
       handle_halt(); break;
-    }case SYS_EXIT: {
+    }case SYS_EXIT: {\
+      int status;
       read_argv(argv, &status, sizeof(status));
       handle_exit(status); 
       break;
@@ -70,9 +75,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       // f->eax = handle_wait(pid); 
       break;
     }case SYS_CREATE: {
-      read_argv(argv, &file, sizeof(file));
-      read_argv(argv + sizeof(file), &size, sizeof(size));
-      // f->eax = handle_create(file, size);
+      f->eax = handle_create(*(void**)argv, *(int*)(argv + sizeof(char*)));
       break;
     }case SYS_REMOVE: {
       read_argv(argv, &file, sizeof(file));
@@ -80,7 +83,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       break;
     }case SYS_OPEN: {
       read_argv(argv, &file, sizeof(file));
-      // f->eax = handle_open(file); 
+      f->eax = handle_open(file); 
       break;
     }case SYS_FILESIZE: {
       read_argv(argv, &fd, sizeof(fd));
@@ -142,6 +145,10 @@ int handle_wait(int pid) {
 }
 
 bool handle_create(const char *filename, unsigned initial_size) {
+  if(!buffer_available(filename, 0)){
+    handle_exit(-1);
+    return false;
+  }
   lock_acquire(&file_lock);
   bool is_created = filesys_create(filename, initial_size);
   lock_release(&file_lock);
@@ -170,8 +177,11 @@ bool handle_remove(const char *filename) {
   file desctiptor of that and if there is no file 
   with FILENAME than returns -1 */
 int handle_open(const char *filename) {
-  ASSERT (strlen(filename) > 0 && strlen(filename) <= 14);
-  ASSERT (buffer_available(filename, strlen(filename)));
+  // ASSERT (strlen(filename) > 0 && strlen(filename) <= 14);
+  // if(!buffer_available(filename, 0)){
+  //   handle_exit(-1);
+  //   return false;
+  // }
 
   lock_acquire(&file_lock);
 
@@ -387,7 +397,7 @@ struct file_info_t* get_file_info(int fd, struct list file_list){
  * Returns false otherwise.
  */
 bool buffer_available(void* buffer, unsigned size){
-  if(is_kernel_vaddr((char*)buffer + size)){
+  if(is_kernel_vaddr((char*)buffer + size) || buffer == NULL){
     return false;
   }
   bool result = true;
