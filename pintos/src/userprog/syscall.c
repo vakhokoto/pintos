@@ -59,7 +59,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_PRACTICE: {
       // printf("----------------practice-----------------\n");
       read_argv(argv, &i, sizeof(i));
-      // f->eax = handle_practice(i); 
+      f->eax = handle_practice(i); 
       break;
     }case SYS_HALT: {
       // printf("----------------halt-----------------\n");
@@ -73,12 +73,12 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_EXEC: {
       // printf("----------------exec-----------------\n");
       read_argv(argv, &cmd_line, sizeof(cmd_line));
-      // f->eax = handle_exec(cmd_line); 
+      f->eax = handle_exec(cmd_line); 
       break;
     }case SYS_WAIT: {
       // printf("----------------wait-----------------\n");
       read_argv(argv, &pid, sizeof(pid));
-      // f->eax = handle_wait(pid); 
+      f->eax = handle_wait(pid); 
       break;
     }case SYS_CREATE: {
       // printf("----------------create-----------------\n");
@@ -87,7 +87,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_REMOVE: {
       // printf("----------------remove-----------------\n");
       read_argv(argv, &file, sizeof(file));
-      // f->eax = handle_remove(file); 
+      f->eax = handle_remove(file); 
       break;
     }case SYS_OPEN: {
       // printf("----------------open-----------------\n");
@@ -97,7 +97,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_FILESIZE: {
       // printf("----------------filesize-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
-      // f->eax = handle_filesize(fd); 
+      f->eax = handle_filesize(fd); 
       break;
     }case SYS_WRITE: {
       // printf("----------------write-----------------\n");
@@ -117,17 +117,17 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       // printf("----------------seek-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &size, sizeof(size));
-      // handle_seek(fd, size); 
+      handle_seek(fd, size); 
       break;
     }case SYS_TELL: {
       // printf("----------------tell-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
-      // f->eax = handle_tell(fd); 
+      f->eax = handle_tell(fd); 
       break;
     }case SYS_CLOSE: {
       // printf("----------------close-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
-      // handle_close(fd); 
+      handle_close(fd); 
       break;
     }default:
       // printf("Not Recognized syscall."); 
