@@ -36,7 +36,7 @@ static bool put_user (uint8_t *udst, uint8_t byte);
 static int get_user (const uint8_t *uaddr);
 void read_argv(void *src, void *dst, size_t bytes);
 
-struct lock file_lock;
+static struct lock file_lock;
 
 void syscall_init (void) {
   lock_init(&file_lock);
@@ -160,11 +160,12 @@ int handle_wait(int pid) {
 }
 
 bool handle_create(const char *filename, unsigned initial_size) {
-  if(!buffer_available(filename, 0)){
+  lock_acquire(&file_lock);
+  if(!buffer_available(filename, 0) || !(strlen(filename) >= 0 && strlen(filename) <= 14)){
+    lock_release(&file_lock);
     handle_exit(-1);
     return false;
   }
-  lock_acquire(&file_lock);
   bool is_created = filesys_create(filename, initial_size);
   lock_release(&file_lock);
   return is_created;
@@ -181,9 +182,8 @@ bool handle_remove(const char *filename) {
   bool removed = filesys_remove(filename);
   lock_release(&file_lock);
 
-  ASSERT(removed == 0);
   if (!removed){
-    // perror("File Removed Unsuccessfully\n");
+    handle_exit(-1);
   }
   return true; 
 }
@@ -406,6 +406,10 @@ void handle_close(int fd) {
  * Returns file_info_t structure pointer.
  */ 
 struct file_info_t* get_file_info(int fd, struct list file_list){
+  /* if  empty close automatically */
+  if (!list_empty(&file_list)){
+    return NULL;
+  }
   struct list_elem* e;
   for (e = list_begin(&file_list); e != list_end(&file_list); e = list_next(e)) {
       file_info_t* file_info = list_entry(e, file_info_t, elem);
