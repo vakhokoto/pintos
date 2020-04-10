@@ -48,6 +48,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     handle_exit(-1);
     return;
   } 
+  // printf("aq shemovidaaaaaaaaaaaaaaaaaaaaaaaaaaaaa----------------------\n");
   uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
   void* argv = f->esp + sizeof (uint32_t); 
   const char* cmd_line, file;
@@ -56,66 +57,80 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
   unsigned size;
   switch(SYSCALL_NUM) {
     case SYS_PRACTICE: {
+      // printf("----------------practice-----------------\n");
       read_argv(argv, &i, sizeof(i));
       // f->eax = handle_practice(i); 
       break;
     }case SYS_HALT: {
+      // printf("----------------halt-----------------\n");
       handle_halt(); break;
     }case SYS_EXIT: {\
+      // printf("----------------exit-----------------\n");
       int status;
       read_argv(argv, &status, sizeof(status));
       handle_exit(status); 
       break;
     }case SYS_EXEC: {
+      // printf("----------------exec-----------------\n");
       read_argv(argv, &cmd_line, sizeof(cmd_line));
       // f->eax = handle_exec(cmd_line); 
       break;
     }case SYS_WAIT: {
+      // printf("----------------wait-----------------\n");
       read_argv(argv, &pid, sizeof(pid));
       // f->eax = handle_wait(pid); 
       break;
     }case SYS_CREATE: {
+      // printf("----------------create-----------------\n");
       f->eax = handle_create(*(void**)argv, *(int*)(argv + sizeof(char*)));
       break;
     }case SYS_REMOVE: {
+      // printf("----------------remove-----------------\n");
       read_argv(argv, &file, sizeof(file));
       // f->eax = handle_remove(file); 
       break;
     }case SYS_OPEN: {
-      read_argv(argv, &file, sizeof(file));
-      f->eax = handle_open(file); 
+      // printf("----------------open-----------------\n");
+      // read_argv(argv, &file, sizeof(file));
+      f->eax = handle_open(*(char**)argv); 
       break;
     }case SYS_FILESIZE: {
+      // printf("----------------filesize-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       // f->eax = handle_filesize(fd); 
       break;
     }case SYS_WRITE: {
+      // printf("----------------write-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &buffer, sizeof(buffer));
       read_argv(argv + sizeof(fd) + sizeof(buffer), &size, sizeof(size));
       f->eax = handle_write(fd, buffer, size);
       break;
     }case SYS_READ: {
+      // printf("----------------read-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &buffer, sizeof(buffer));
       read_argv(argv + sizeof(fd) + sizeof(buffer), &size, sizeof(size));
       // f->eax = handle_read(fd, buffer, size); 
       break;
     }case SYS_SEEK: {
+      // printf("----------------seek-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &size, sizeof(size));
       // handle_seek(fd, size); 
       break;
     }case SYS_TELL: {
+      // printf("----------------tell-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       // f->eax = handle_tell(fd); 
       break;
     }case SYS_CLOSE: {
+      // printf("----------------close-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       // handle_close(fd); 
       break;
     }default:
-      printf("Not Recognized syscall."); 
+      // printf("Not Recognized syscall."); 
       return;
   }
 }
@@ -178,10 +193,12 @@ bool handle_remove(const char *filename) {
   with FILENAME than returns -1 */
 int handle_open(const char *filename) {
   // ASSERT (strlen(filename) > 0 && strlen(filename) <= 14);
-  // if(!buffer_available(filename, 0)){
-  //   handle_exit(-1);
-  //   return false;
-  // }
+  if(!buffer_available(filename, 0)){
+    handle_exit(-1);
+    return false;
+  }
+
+  // printf("aq shemovidaaaaaaaaaaaaaaaaaaaaaaaaaaaaa----------------------\n");
 
   lock_acquire(&file_lock);
 
@@ -193,6 +210,7 @@ int handle_open(const char *filename) {
 
   /* return -1 if file can't be created */
   if (new_file == NULL){
+    // printf("aq shemovida %d\n", new_file_fd);
     lock_release(&file_lock);
     return new_file_fd;
   }
@@ -201,7 +219,9 @@ int handle_open(const char *filename) {
   struct thread *cur_thread = thread_current();
 
   /* finding next file descriptor */
-  struct list_elem *cur_last_elem = list_back(&cur_thread -> file_list);
+  struct list_elem *cur_last_elem = NULL;
+  if (!list_empty(&cur_thread -> file_list))
+    cur_last_elem = list_back(&cur_thread -> file_list);
 
   file_info_t *opened_file = malloc(sizeof(file_info_t));
 
@@ -218,6 +238,7 @@ int handle_open(const char *filename) {
   opened_file -> fd = new_file_fd;
   opened_file -> file = new_file;
   opened_file -> size = file_length(new_file);
+  // printf("aq shemoida da zoma aris -> %d\n", opened_file -> size);
 
   list_push_back(&cur_thread -> file_list, &opened_file -> elem);
 
