@@ -111,7 +111,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &buffer, sizeof(buffer));
       read_argv(argv + sizeof(fd) + sizeof(buffer), &size, sizeof(size));
-      // f->eax = handle_read(fd, buffer, size); 
+      f->eax = handle_read(fd, buffer, size); 
       break;
     }case SYS_SEEK: {
       // printf("----------------seek-----------------\n");
@@ -161,7 +161,7 @@ int handle_wait(int pid) {
 
 bool handle_create(const char *filename, unsigned initial_size) {
   lock_acquire(&file_lock);
-  if(!buffer_available(filename, 0) || !(strlen(filename) >= 0 && strlen(filename) <= 14)){
+  if(!buffer_available(filename, 0)){
     lock_release(&file_lock);
     handle_exit(-1);
     return false;
@@ -304,15 +304,13 @@ int handle_write(int fd, const void *buffer, unsigned size) {
  * (due to a condition other than end of file). Fd 0 reads from the keyboard using
  * input_getc().
  */
-int handle_read(int fd, void* buffer, unsigned size) {  
-
-  lock_acquire(&file_lock);
-
-  if (!buffer_available(buffer, size)){
+int handle_read(int fd, void* buffer, unsigned size) {
+  if(buffer == NULL || size < 0 || !buffer_available(buffer, size)){
     handle_exit(-1);
     return -1;
-  }
-
+  } 
+  int bytes_read = -1;
+  lock_acquire(&file_lock);
   if (fd == 0){
     char* stdio_buffer = (char*)buffer;
     int i = 0;
@@ -327,11 +325,14 @@ int handle_read(int fd, void* buffer, unsigned size) {
   } else {
     struct thread* cur_thread = thread_current();
     file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
-    ASSERT(file_info == NULL &&file_info -> file == NULL);
-    file_read(file_info -> file, buffer, size);
+    if (file_info == NULL || file_info -> file == NULL){
+      lock_release(&file_lock);
+      return -1;
+    }
+    bytes_read = file_read(file_info -> file, buffer, size);
   }
-  // Read from file
-  
+  lock_release(&file_lock);
+  return bytes_read;
 }
 
 /*
@@ -407,7 +408,7 @@ void handle_close(int fd) {
  */ 
 struct file_info_t* get_file_info(int fd, struct list file_list){
   /* if  empty close automatically */
-  if (!list_empty(&file_list)){
+  if (list_empty(&file_list)){
     return NULL;
   }
   struct list_elem* e;
