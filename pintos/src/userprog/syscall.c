@@ -30,7 +30,7 @@ void handle_seek(int fd, unsigned position);
 unsigned handle_tell(int fd);
 void handle_close(int fd);
 
-struct file_info_t* get_file_info(int fd, struct list file_list);
+struct file_info_t* get_file_info(int fd, struct list *file_list);
 bool buffer_available(void* buffer, unsigned size);
 static bool put_user (uint8_t *udst, uint8_t byte);
 static int get_user (const uint8_t *uaddr);
@@ -59,7 +59,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_PRACTICE: {
       // printf("----------------practice-----------------\n");
       read_argv(argv, &i, sizeof(i));
-      // f->eax = handle_practice(i); 
+      f->eax = handle_practice(i); 
       break;
     }case SYS_HALT: {
       // printf("----------------halt-----------------\n");
@@ -73,12 +73,12 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_EXEC: {
       // printf("----------------exec-----------------\n");
       read_argv(argv, &cmd_line, sizeof(cmd_line));
-      // f->eax = handle_exec(cmd_line); 
+      f->eax = handle_exec(cmd_line); 
       break;
     }case SYS_WAIT: {
       // printf("----------------wait-----------------\n");
       read_argv(argv, &pid, sizeof(pid));
-      // f->eax = handle_wait(pid); 
+      f->eax = handle_wait(pid); 
       break;
     }case SYS_CREATE: {
       // printf("----------------create-----------------\n");
@@ -87,7 +87,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_REMOVE: {
       // printf("----------------remove-----------------\n");
       read_argv(argv, &file, sizeof(file));
-      // f->eax = handle_remove(file); 
+      f->eax = handle_remove(file); 
       break;
     }case SYS_OPEN: {
       // printf("----------------open-----------------\n");
@@ -97,7 +97,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_FILESIZE: {
       // printf("----------------filesize-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
-      // f->eax = handle_filesize(fd); 
+      f->eax = handle_filesize(fd); 
       break;
     }case SYS_WRITE: {
       // printf("----------------write-----------------\n");
@@ -117,17 +117,17 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       // printf("----------------seek-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &size, sizeof(size));
-      // handle_seek(fd, size); 
+      handle_seek(fd, size); 
       break;
     }case SYS_TELL: {
       // printf("----------------tell-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
-      // f->eax = handle_tell(fd); 
+      f->eax = handle_tell(fd); 
       break;
     }case SYS_CLOSE: {
       // printf("----------------close-----------------\n");
       read_argv(argv, &fd, sizeof(fd));
-      // handle_close(fd); 
+      handle_close(fd); 
       break;
     }default:
       // printf("Not Recognized syscall."); 
@@ -257,7 +257,7 @@ int handle_open(const char *filename) {
 
 int handle_filesize(int fd) {
   struct thread* cur_thread = thread_current();
-  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
   if (file_info == NULL){
     handle_exit(-1);
   }
@@ -288,7 +288,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
     /* current thread */
     struct thread *cur_thread = thread_current();
     /* file_info where the data should be written */
-    file_info_t *output_file = get_file_info(fd, cur_thread -> file_list);
+    file_info_t *output_file = get_file_info(fd, &cur_thread -> file_list);
     if (output_file == NULL){
       handle_exit(-1);
       return false;
@@ -330,7 +330,7 @@ int handle_read(int fd, void* buffer, unsigned size) {
     }
   } else {
     struct thread* cur_thread = thread_current();
-    file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+    file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
     if (file_info == NULL || file_info -> file == NULL){
       lock_release(&file_lock);
       return -1;
@@ -350,7 +350,7 @@ void handle_seek(int fd, unsigned position) {
 
   lock_acquire(&file_lock);
   
-  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
   if (!(file_info == NULL &&file_info -> file == NULL)){
     handle_exit(-1);
     return;
@@ -370,7 +370,7 @@ unsigned handle_tell(int fd) {
   struct thread* cur_thread = thread_current();
 
   lock_acquire(&file_lock);
-  file_info_t* file_info = get_file_info(fd, cur_thread -> file_list);
+  file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
 
   if (file_info == NULL){
     handle_exit(-1);
@@ -395,7 +395,7 @@ void handle_close(int fd) {
   struct thread *thread = thread_current();
 
   /* file info that should be closed */
-  file_info_t *file = get_file_info(fd, thread -> file_list);
+  file_info_t *file = get_file_info(fd, &thread -> file_list);
   if (file != NULL){
     /* close file */
     file_close(file -> file);
@@ -412,13 +412,13 @@ void handle_close(int fd) {
  * Finds file info structure by its file descriptor 
  * Returns file_info_t structure pointer.
  */ 
-struct file_info_t* get_file_info(int fd, struct list file_list){
+struct file_info_t* get_file_info(int fd, struct list *file_list){
   /* if  empty close automatically */
-  if (list_empty(&file_list)){
+  if (list_empty(file_list)){
     return NULL;
   }
   struct list_elem* e;
-  for (e = list_begin(&file_list); e != list_end(&file_list); e = list_next(e)) {
+  for (e = list_begin(file_list); e != list_end(file_list); e = list_next(e)) {
       file_info_t* file_info = list_entry(e, file_info_t, elem);
       if(file_info -> fd == fd)
         return file_info;
@@ -431,7 +431,7 @@ struct file_info_t* get_file_info(int fd, struct list file_list){
  * Returns false otherwise.
  */
 bool buffer_available(void* buffer, unsigned size){
-  if(is_kernel_vaddr((char*)buffer + size) || buffer == NULL){
+  if(buffer == NULL || is_kernel_vaddr((char*)buffer + size)){
     return false;
   }
   bool result = true;
@@ -446,7 +446,7 @@ bool buffer_available(void* buffer, unsigned size){
     }
   }
 
-  if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size) == NULL){
+  if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size - 1) == NULL){
     result = false;
   }
   return result;
