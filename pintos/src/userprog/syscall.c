@@ -64,7 +64,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_HALT: {
       // printf("----------------halt-----------------\n");
       handle_halt(); break;
-    }case SYS_EXIT: {\
+    }case SYS_EXIT: {
       // printf("----------------exit-----------------\n");
       int status;
       read_argv(argv, &status, sizeof(status));
@@ -136,29 +136,35 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 // Handle Syscalls Here:
+/* Practice syscall - increments i by 1. */
 int handle_practice(int i) {
   return ++i;
 }
 
+/* Halt syscall - terminates pintos by calling shutdown_power_off(). */
 void handle_halt() {
-  // need to save states??
   shutdown_power_off();
 }
 
+/* Exit syscall - terminates the current user program, returning status to the kernel. */
 void handle_exit(int status) {
   printf("%s: exit(%d)\n", &thread_current ()->name, status);
-  thread_current()->exit_code = status;
+  thread_current()->exit_status = status;
   thread_exit();
 }
 
+/* Exec syscall - runs the executable whose name is given in cmd_line */
 tid_t handle_exec(const char* cmd_line) {
   return process_execute(cmd_line);
 }
 
+/* Wait syscall - Waits for a child process pid and retrieves the child’s exit status */
 int handle_wait(int pid) {
   return process_wait(pid);
 }
 
+/* Create syscall - creates a new ﬁle called ﬁle initially
+ * initial size bytes in size. Returns true if successful, false otherwise. */
 bool handle_create(const char *filename, unsigned initial_size) {
   lock_acquire(&file_lock);
   if(!buffer_available(filename, 0)){

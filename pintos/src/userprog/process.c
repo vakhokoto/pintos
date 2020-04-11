@@ -26,7 +26,7 @@ static bool load (process_execute_info* pe_info, void (**eip) (void), void **esp
 void initialize_process_execute_info(process_execute_info* pe_info, char* line);
 void initialize_child_info(child_info* ch_info);
 struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED);
-struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSED);
+void remove_child_struct(struct thread* cur, tid_t child_tid UNUSED);
 void destroy_file_descriptors(struct thread* cur);
 void destroy_children(struct thread* cur);
 
@@ -35,7 +35,6 @@ void initialize_child_info(child_info* ch_info) {
   ch_info->wait_status = !WAITING;
   ch_info->exit_status = -1;
   ch_info->child_tid = 0;
-  ch_info->alive = 1;
   sema_init(&(ch_info->sem), 0);
 }
 
@@ -91,6 +90,7 @@ tid_t process_execute (const char *file_name) {
   list_push_back(&thread_current()->children, &(ch_info->elem));
   /* Waiting to load */
   sema_down(&(ch_info->sem));
+  free(pe_info);
   if (ch_info->child_tid == TID_ERROR)
     palloc_free_page (fn_copy);
     return TID_ERROR;
@@ -139,23 +139,24 @@ struct child_info* get_child_struct(struct thread* cur, tid_t child_tid UNUSED) 
 }
 
 /* removes child threads PEInfo struct by threads TID*/
-struct child_info* remove_child_struct(struct thread* cur, tid_t child_tid UNUSED) {
+void remove_child_struct(struct thread* cur, tid_t child_tid UNUSED) {
   struct list_elem* e;
   for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
-      if(ch_info->child_tid == child_tid) 
-        return list_remove(&ch_info->elem);
+      if(ch_info->child_tid == child_tid) {
+        list_remove(&ch_info->elem);
+        free(ch_info);
+        return;
+      }
   }
-  return NULL;
 }
 
 /* deletes all child's structures from cur->children list*/
 void destroy_children(struct thread* cur) {
-  struct list_elem* e = list_begin(&(cur->children));
-  while(!list_empty(&(cur->children))) {
-    // struct child_info* ch_info = list_entry(e, struct child_info, elem);
-    //palloc_free_page(ch_info);     needed?
-    e = list_remove(e);
+  while (!list_empty (&(cur->children))){
+    struct list_elem *e = list_pop_front (&(cur->children));
+    struct child_info* ch_info = list_entry(e, struct child_info, elem);
+    free(ch_info);
   }
 }
 
@@ -170,30 +171,30 @@ void destroy_children(struct thread* cur) {
 int process_wait (tid_t child_tid UNUSED) {
   struct child_info* ch_info = get_child_struct(thread_current(), child_tid);
 
+  /* check if this process already waiting child or tid is valid. */
   if(ch_info == NULL || ch_info->wait_status == WAITING) 
     return -1;
 
   /* set wating status */
   ch_info->wait_status = WAITING;
   
-  /* check if child process is alive - than wait, or continue. */
-  if(ch_info->alive)
-    sema_down(&(ch_info->sem));
+  /* waits child's exit */
+  sema_down(&(ch_info->sem));
   
-  ASSERT(ch_info->alive);
-  return ch_info->exit_status;
+  ASSERT(ch_info->wait_status != WAITING);
+  int exit_status = ch_info->exit_status;
+  remove_child_struct(thread_current(), child_tid);
+  return exit_status;
 }
 
 
 /* Closes and deletes all files from cur->file list*/
 void destroy_file_descriptors(struct thread* cur) {
-  struct list_elem* e = list_begin(&(cur->file_list));
-  while(!list_empty(&(cur->file_list))) {
-    struct file_info_t* f_info = list_entry(e, struct file_info_t, elem);
-    file_close(f_info->file);
-    //palloc_free_page(file);     needed?
-    e = list_remove(e);
-  }
+    while (!list_empty (&(cur->file_list))){
+      struct list_elem *e = list_pop_front (&(cur->file_list));
+      struct file_info_t* f_info = list_entry(e, struct file_info_t, elem);
+      file_close(f_info->file);
+    }
 }
 
 /* Free the current process's resources. */
@@ -229,8 +230,8 @@ void process_exit (void) {
   if(ch_info == NULL || ch_info->wait_status != WAITING) 
     return; 
   /* update parent's referencing struct to cur*/
-  ch_info->alive = 0;
-  ch_info->exit_status = cur->exit_code;
+  ch_info->wait_status = !WAITING;
+  ch_info->exit_status = cur->exit_status;
   sema_up(&(ch_info->sem));
 }
 
