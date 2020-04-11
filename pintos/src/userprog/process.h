@@ -24,6 +24,7 @@ typedef struct process_execute_info {
   // info
   int argc;
   int tot_len;
+  int load_success;
   char* argv[32];
   char file_name[PATH_MAX];
 } process_execute_info;

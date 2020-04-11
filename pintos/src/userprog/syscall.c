@@ -36,10 +36,11 @@ static bool put_user (uint8_t *udst, uint8_t byte);
 static int get_user (const uint8_t *uaddr);
 void read_argv(void *src, void *dst, size_t bytes);
 
-static struct lock file_lock;
+static struct lock file_lock, buffer_lock;
 
 void syscall_init (void) {
   lock_init(&file_lock);
+  lock_init(&buffer_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -436,6 +437,7 @@ struct file_info_t* get_file_info(int fd, struct list *file_list){
  * Returns false otherwise.
  */
 bool buffer_available(void* buffer, unsigned size){
+  lock_acquire(&buffer_lock);
   if(buffer == NULL || is_kernel_vaddr((char*)buffer + size)){
     return false;
   }
@@ -454,6 +456,7 @@ bool buffer_available(void* buffer, unsigned size){
   if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size - 1) == NULL){
     result = false;
   }
+  lock_release(&buffer_lock);
   return result;
 }
 

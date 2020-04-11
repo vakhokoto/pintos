@@ -45,6 +45,7 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
     memcpy(pe_info->file_name, token, strlen(token) + 1);
     // set arguments
     pe_info->tot_len = 0;
+    pe_info->load_success = 0;
     int i = 0;
     while(i < 32) {
       if(token == NULL) {
@@ -55,7 +56,6 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
       pe_info->argv[i] = malloc(PATH_MAX);
       int len = strlen(token) + 1;
       memcpy(pe_info->argv[i], token, len);
-      // printf("aq aris -> %s\n", pe_info -> argv[i]);
       pe_info->tot_len += len;
       token = strtok_r(NULL, " ", &tok_ptr);
       i++;
@@ -83,27 +83,20 @@ tid_t process_execute (const char *file_name) {
   
   initialize_child_info(ch_info);
   initialize_process_execute_info(pe_info, fn_copy);
-  // printf("Axali procesiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii\n");
-  // printf("---------Mshoblisss pid: %d\n", thread_current()->tid);
-  // printf("---------Elodebaaaa %d\n", thread_current()->tid);
-  // printf("------semaforaaa: %p\n", &(ch_info->sem));
+
   /* Push Child's struct in Parent's list */
   list_push_back(&thread_current()->children, &(ch_info->elem));
   /* Create a new thread to execute FILE_NAME. */
   ch_info->child_tid = thread_create (pe_info->file_name, PRI_DEFAULT, start_process, pe_info);
   
   /* Waiting to load */
-  // printf("-------Semaforas value: %d\n", ch_info->sem.value);
-  if (thread_tid() != ch_info->child_tid){
-    sema_down(&(ch_info->sem));
-  }
-  // printf("-------agaaar : %d\n", thread_current()->tid);
-  free(pe_info);
-  if (ch_info->child_tid == TID_ERROR){
+  sema_down(&(ch_info->sem));
+  if (ch_info->child_tid == TID_ERROR || !pe_info->load_success) {
     palloc_free_page (fn_copy);
+    free(pe_info);
     return TID_ERROR;
   }
-
+  free(pe_info);
   return ch_info->child_tid;
 }
 
@@ -119,9 +112,11 @@ static void start_process (void *pe_info_) {
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(pe_info, &if_.eip, &if_.esp);
-  if (thread_current() != thread_current()->parent){
-    sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
-  }
+  pe_info->load_success = success;
+
+  /* let parent to go on its job */
+  sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
+  
   /* If load failed, quit. */
   if (!success)
     thread_exit ();
@@ -182,16 +177,14 @@ int process_wait (tid_t child_tid UNUSED) {
   struct child_info* ch_info = get_child_struct(thread_current(), child_tid);
 
   /* check if this process already waiting child or tid is valid. */
-  if(ch_info == NULL || ch_info->wait_status == WAITING) 
+  if(ch_info == NULL || ch_info->wait_status == WAITING || thread_tid() == child_tid) 
     return -1;
 
   /* set wating status */
   ch_info->wait_status = WAITING;
   
   /* waits child's exit */
-  if (thread_tid() != child_tid){
-    sema_down(&(ch_info->sem));
-  }
+  sema_down(&(ch_info->sem));
   
  // ASSERT(ch_info->wait_status != WAITING);
   int exit_status = ch_info->exit_status;
@@ -245,9 +238,7 @@ void process_exit (void) {
   /* update parent's referencing struct to cur*/
   ch_info->wait_status = !WAITING;
   ch_info->exit_status = cur->exit_status;
-  if (cur->tid != cur->parent->tid){
-    sema_up(&(ch_info->sem));
-  }
+  sema_up(&(ch_info->sem));
 }
 
 /* Sets up the CPU for running user code in the current
