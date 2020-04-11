@@ -83,13 +83,19 @@ tid_t process_execute (const char *file_name) {
   
   initialize_child_info(ch_info);
   initialize_process_execute_info(pe_info, fn_copy);
-  
-  /* Create a new thread to execute FILE_NAME. */
-  ch_info->child_tid = thread_create (pe_info->file_name, PRI_DEFAULT, start_process, pe_info);
+  // printf("Axali procesiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii\n");
+  // printf("---------Mshoblisss pid: %d\n", thread_current()->tid);
+  // printf("---------Elodebaaaa %d\n", thread_current()->tid);
+  // printf("------semaforaaa: %p\n", &(ch_info->sem));
   /* Push Child's struct in Parent's list */
   list_push_back(&thread_current()->children, &(ch_info->elem));
+  /* Create a new thread to execute FILE_NAME. */
+  ch_info->child_tid = thread_create (pe_info->file_name, PRI_DEFAULT, start_process, pe_info);
+  
   /* Waiting to load */
+  // printf("-------Semaforas value: %d\n", ch_info->sem.value);
   sema_down(&(ch_info->sem));
+  // printf("-------agaaar : %d\n", thread_current()->tid);
   free(pe_info);
   if (ch_info->child_tid == TID_ERROR)
     palloc_free_page (fn_copy);
