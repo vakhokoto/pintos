@@ -148,7 +148,7 @@ void handle_halt() {
 
 /* Exit syscall - terminates the current user program, returning status to the kernel. */
 void handle_exit(int status) {
-  printf("%s: exit(%d)\n", &thread_current ()->name, status);
+  // printf("%s: exit(%d)\n", &thread_current ()->name, status);
   thread_current()->exit_status = status;
   thread_exit();
 }

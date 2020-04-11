@@ -200,6 +200,7 @@ void destroy_file_descriptors(struct thread* cur) {
 /* Free the current process's resources. */
 void process_exit (void) {
   struct thread *cur = thread_current();
+  printf("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   /* Destroy the current process's files */
   // destroy_file_descriptors(cur);
@@ -227,8 +228,8 @@ void process_exit (void) {
   child_info* ch_info = get_child_struct(cur->parent, thread_tid());
   
   /* noone waits cur thread */
-  if(ch_info == NULL || ch_info->wait_status != WAITING) 
-    return; 
+  if(ch_info == NULL) return;
+
   /* update parent's referencing struct to cur*/
   ch_info->wait_status = !WAITING;
   ch_info->exit_status = cur->exit_status;
