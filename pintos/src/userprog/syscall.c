@@ -231,6 +231,7 @@ int handle_open(const char *filename) {
   file_info_t *opened_file = malloc(sizeof(file_info_t));
 
   if (opened_file == NULL){
+    lock_release(&file_lock);
     handle_exit(-1);
     return -1;
   }
@@ -290,6 +291,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
     /* file_info where the data should be written */
     file_info_t *output_file = get_file_info(fd, &cur_thread -> file_list);
     if (output_file == NULL){
+      lock_release(&file_lock);
       handle_exit(-1);
       return false;
     }
@@ -352,6 +354,7 @@ void handle_seek(int fd, unsigned position) {
   
   file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
   if (!(file_info == NULL &&file_info -> file == NULL)){
+    lock_release(&file_lock);
     handle_exit(-1);
     return;
   }
@@ -373,6 +376,7 @@ unsigned handle_tell(int fd) {
   file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
 
   if (file_info == NULL){
+    lock_release(&file_lock);
     handle_exit(-1);
     return -1;
   }
