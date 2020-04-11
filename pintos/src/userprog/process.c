@@ -94,12 +94,15 @@ tid_t process_execute (const char *file_name) {
   
   /* Waiting to load */
   // printf("-------Semaforas value: %d\n", ch_info->sem.value);
-  sema_down(&(ch_info->sem));
+  if (thread_tid() != ch_info->child_tid){
+    sema_down(&(ch_info->sem));
+  }
   // printf("-------agaaar : %d\n", thread_current()->tid);
   free(pe_info);
-  if (ch_info->child_tid == TID_ERROR)
+  if (ch_info->child_tid == TID_ERROR){
     palloc_free_page (fn_copy);
     return TID_ERROR;
+  }
 
   return ch_info->child_tid;
 }
@@ -116,8 +119,9 @@ static void start_process (void *pe_info_) {
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(pe_info, &if_.eip, &if_.esp);
-
-  sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
+  if (thread_current() != thread_current()->parent){
+    sema_up(&(get_child_struct(thread_current()->parent, thread_tid())->sem));
+  }
   /* If load failed, quit. */
   if (!success)
     thread_exit ();
@@ -185,11 +189,13 @@ int process_wait (tid_t child_tid UNUSED) {
   ch_info->wait_status = WAITING;
   
   /* waits child's exit */
-  sema_down(&(ch_info->sem));
+  if (thread_tid() != child_tid){
+    sema_down(&(ch_info->sem));
+  }
   
-  ASSERT(ch_info->wait_status != WAITING);
+ // ASSERT(ch_info->wait_status != WAITING);
   int exit_status = ch_info->exit_status;
-  remove_child_struct(thread_current(), child_tid);
+ // remove_child_struct(thread_current(), child_tid);
   return exit_status;
 }
 
@@ -239,7 +245,9 @@ void process_exit (void) {
   /* update parent's referencing struct to cur*/
   ch_info->wait_status = !WAITING;
   ch_info->exit_status = cur->exit_status;
-  sema_up(&(ch_info->sem));
+  if (cur->tid != cur->parent->tid){
+    sema_up(&(ch_info->sem));
+  }
 }
 
 /* Sets up the CPU for running user code in the current

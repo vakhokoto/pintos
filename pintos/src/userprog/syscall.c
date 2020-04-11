@@ -388,6 +388,7 @@ unsigned handle_tell(int fd) {
   return pos;
 }
 
+
 void handle_close(int fd) {
   if (!(fd != 0 && fd != 1)){
     handle_exit(-1);
