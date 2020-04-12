@@ -87,12 +87,10 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       break;
     }case SYS_REMOVE: {
       // printf("----------------remove-----------------\n");
-      read_argv(argv, &file, sizeof(file));
-      f->eax = handle_remove(file); 
+      f->eax = handle_remove(*(char**)argv); 
       break;
     }case SYS_OPEN: {
       // printf("----------------open-----------------\n");
-      // read_argv(argv, &file, sizeof(file));
       f->eax = handle_open(*(char**)argv); 
       break;
     }case SYS_FILESIZE: {
@@ -156,7 +154,9 @@ void handle_exit(int status) {
 
 /* Exec syscall - runs the executable whose name is given in cmd_line */
 tid_t handle_exec(const char* cmd_line) {
-  return process_execute(cmd_line);
+  if(buffer_available(cmd_line, 0))
+    return process_execute(cmd_line);
+  handle_exit(-1);
 }
 
 /* Wait syscall - Waits for a child process pid and retrieves the child’s exit status */
