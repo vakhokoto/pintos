@@ -68,8 +68,8 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_EXIT: {
       // printf("----------------exit-----------------\n");
       read_argv(argv, &status, sizeof(status));
-      handle_exit(status);
       f->eax = status; 
+      handle_exit(status);
       break;
     }case SYS_EXEC: {
       // printf("----------------exec-----------------\n");
@@ -314,7 +314,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
  * input_getc().
  */
 int handle_read(int fd, void* buffer, unsigned size) {
-  if(buffer == NULL || size < 0 || !buffer_available(buffer, size)){
+  if(buffer == NULL || !buffer_available(buffer, 0)){
     handle_exit(-1);
     return -1;
   } 
@@ -327,6 +327,7 @@ int handle_read(int fd, void* buffer, unsigned size) {
       uint8_t key = input_getc();
       if (!put_user((char*)stdio_buffer + i, key)){
         lock_release(&file_lock);
+        handle_exit(-1);
         return -1;
       }
       i++;
