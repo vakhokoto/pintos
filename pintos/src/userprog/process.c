@@ -30,7 +30,7 @@ void remove_child_struct(struct thread* cur, tid_t child_tid UNUSED);
 void destroy_file_descriptors(struct thread* cur);
 void destroy_children(struct thread* cur);
 
-
+/* initializes child_info struct */
 void initialize_child_info(child_info* ch_info) {
   ch_info->wait_status = !WAITING;
   ch_info->exit_status = -1;
@@ -38,6 +38,7 @@ void initialize_child_info(child_info* ch_info) {
   sema_init(&(ch_info->sem), 0);
 }
 
+/* initializes process_execute_info struct according to the given line */
 void initialize_process_execute_info(process_execute_info* pe_info, char* line) {
     char* tok_ptr = NULL;
     char* token = strtok_r(line, " ", &tok_ptr);
@@ -53,7 +54,7 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
         pe_info->argc = i;
         break;  
       }
-      pe_info->argv[i] = malloc(PATH_MAX);
+      pe_info->argv[i] = malloc(4*PATH_MAX);
       int len = strlen(token) + 1;
       memcpy(pe_info->argv[i], token, len);
       pe_info->tot_len += len;
@@ -61,6 +62,14 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
       i++;
     }
     pe_info->tot_len += (pe_info->tot_len + 4) % 4;
+}
+
+/* frees malloc variables from process_execute_info */
+void destroy_process_execute_info(process_execute_info* pe_info) {
+  size_t i;
+  for(i = 0; i < pe_info->argc; i++)
+    free(pe_info->argv[i]);
+  free(pe_info);
 }
 
 /* Starts a new thread running a user program loaded from
@@ -93,10 +102,10 @@ tid_t process_execute (const char *file_name) {
   sema_down(&(ch_info->sem));
   if (ch_info->child_tid == TID_ERROR || !pe_info->load_success) {
     palloc_free_page (fn_copy);
-    free(pe_info);
+    destroy_process_execute_info(pe_info);
     return TID_ERROR;
   }
-  free(pe_info);
+  destroy_process_execute_info(pe_info);
   return ch_info->child_tid;
 }
 
@@ -149,7 +158,7 @@ void remove_child_struct(struct thread* cur, tid_t child_tid UNUSED) {
   for (e = list_begin(&(cur->children)); e != list_end(&(cur->children)); e = list_next(e)) {
       struct child_info* ch_info = list_entry(e, struct child_info, elem);
       if(ch_info->child_tid == child_tid) {
-        list_remove(&ch_info->elem);
+        list_remove(e);
         free(ch_info);
         return;
       }
@@ -208,10 +217,10 @@ void process_exit (void) {
   printf("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   /* Destroy the current process's files */
-  // destroy_file_descriptors(cur);
+  destroy_file_descriptors(cur);
 
   /* Destroy the current process's children */
-  // destroy_children(cur);
+  destroy_children(cur);
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
