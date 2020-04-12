@@ -316,7 +316,7 @@ int handle_write(int fd, const void *buffer, unsigned size) {
  * input_getc().
  */
 int handle_read(int fd, void* buffer, unsigned size) {
-  if(buffer == NULL || size < 0 || !buffer_available(buffer, size)){
+  if(buffer == NULL || !buffer_available(buffer, 0)){
     handle_exit(-1);
     return -1;
   } 
@@ -329,6 +329,7 @@ int handle_read(int fd, void* buffer, unsigned size) {
       uint8_t key = input_getc();
       if (!put_user((char*)stdio_buffer + i, key)){
         lock_release(&file_lock);
+        handle_exit(-1);
         return -1;
       }
       i++;
