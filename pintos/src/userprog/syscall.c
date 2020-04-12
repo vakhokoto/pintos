@@ -67,9 +67,9 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       handle_halt(); break;
     }case SYS_EXIT: {
       // printf("----------------exit-----------------\n");
-      int status;
       read_argv(argv, &status, sizeof(status));
-      handle_exit(status); 
+      handle_exit(status);
+      f->eax = status; 
       break;
     }case SYS_EXEC: {
       // printf("----------------exec-----------------\n");
@@ -354,13 +354,8 @@ void handle_seek(int fd, unsigned position) {
   lock_acquire(&file_lock);
   
   file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
-  if (!(file_info == NULL &&file_info -> file == NULL)){
-    lock_release(&file_lock);
-    handle_exit(-1);
-    return;
-  }
-
-  file_seek (file_info -> file, position);
+  if (file_info && file_info -> file)
+    file_seek (file_info -> file, position);
 
   lock_release(&file_lock);
 }
