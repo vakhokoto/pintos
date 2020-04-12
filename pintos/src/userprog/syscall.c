@@ -356,6 +356,10 @@ void handle_seek(int fd, unsigned position) {
   file_info_t* file_info = get_file_info(fd, &cur_thread -> file_list);
   if (file_info && file_info -> file)
     file_seek (file_info -> file, position);
+  else {
+    lock_release(&file_lock);
+    handle_exit(-1);
+  }
 
   lock_release(&file_lock);
 }
