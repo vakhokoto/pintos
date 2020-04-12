@@ -156,7 +156,9 @@ void handle_exit(int status) {
 
 /* Exec syscall - runs the executable whose name is given in cmd_line */
 tid_t handle_exec(const char* cmd_line) {
-  return process_execute(cmd_line);
+  if(buffer_available(cmd_line, 0))
+    return process_execute(cmd_line);
+  handle_exit(-1);
 }
 
 /* Wait syscall - Waits for a child process pid and retrieves the child’s exit status */
