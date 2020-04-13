@@ -443,7 +443,6 @@ struct file_info_t* get_file_info(int fd, struct list *file_list){
  * Returns false otherwise.
  */
 bool buffer_available(void* buffer, unsigned size){
-  lock_acquire(&buffer_lock);
   if(buffer == NULL || is_kernel_vaddr((char*)buffer + size)){
     return false;
   }
@@ -462,7 +461,6 @@ bool buffer_available(void* buffer, unsigned size){
   if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size - 1) == NULL){
     result = false;
   }
-  lock_release(&buffer_lock);
   return result;
 }
 
