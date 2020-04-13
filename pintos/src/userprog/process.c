@@ -130,6 +130,7 @@ static void start_process (void *pe_info_) {
   if (!success)
     thread_exit ();
 
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -244,9 +245,13 @@ void process_exit (void) {
   /* noone waits cur thread */
   if(ch_info == NULL) return;
 
+
   /* update parent's referencing struct to cur*/
   ch_info->wait_status = !WAITING;
   ch_info->exit_status = cur->exit_status;
+  if (thread_current() ->my_file){
+    file_close (thread_current() ->my_file);
+  }
   sema_up(&(ch_info->sem));
 }
 
@@ -364,6 +369,12 @@ load (process_execute_info* pe_info, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done;
     }
+  
+
+  thread_current()->my_file=file;
+  file_deny_write(file);
+  
+
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -436,7 +447,7 @@ load (process_execute_info* pe_info, void (**eip) (void), void **esp)
           break;
         }
     }
-
+  
   /* Set up stack. */
   if (!setup_stack (esp, pe_info))
     goto done;
@@ -448,7 +459,7 @@ load (process_execute_info* pe_info, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+ // file_close (file);
   return success;
 }
 

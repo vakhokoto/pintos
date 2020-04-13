@@ -111,6 +111,8 @@ struct thread
 
     /* list of files opened */
     struct list file_list;
+    struct file* my_file;
+
    
 //#ifdef USERPROG
     /* Owned by userprog/process.c. */

@@ -10,6 +10,7 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/stdio.h"
 
+
 #define PIECE_SIZE 100
 
 static void syscall_handler (struct intr_frame *);
@@ -296,9 +297,12 @@ int handle_write(int fd, const void *buffer, unsigned size) {
       handle_exit(-1);
       return false;
     }
+    //printf("%p  writing at\n", output_file -> file);
 
     /* writing into file */
-    written_bytes = file_write(output_file -> file, buffer, size);
+    //if (!output_file -> file->deny_write){
+      written_bytes = file_write(output_file -> file, buffer, size);
+    //}
   }
 
   lock_release(&file_lock);
@@ -339,6 +343,8 @@ int handle_read(int fd, void* buffer, unsigned size) {
       lock_release(&file_lock);
       return -1;
     }
+    //printf("%p  reading at\n", file_info -> file);
+
     bytes_read = file_read(file_info -> file, buffer, size);
   }
   lock_release(&file_lock);
