@@ -87,8 +87,16 @@ tid_t process_execute (const char *file_name) {
   child_info* ch_info = malloc(sizeof(child_info));
   process_execute_info* pe_info = malloc(sizeof(process_execute_info));
 
-  if (ch_info == NULL || pe_info == NULL)
+  if (ch_info == NULL || pe_info == NULL){
+    palloc_free_page (fn_copy);
+    if(ch_info != NULL){
+      free(ch_info);
+    }
+    if(pe_info != NULL){
+      free(pe_info);
+    }
     return TID_ERROR;
+  }
   
   initialize_child_info(ch_info);
   initialize_process_execute_info(pe_info, fn_copy);
@@ -101,11 +109,14 @@ tid_t process_execute (const char *file_name) {
   /* Waiting to load */
   sema_down(&(ch_info->sem));
   if (ch_info->child_tid == TID_ERROR || !pe_info->load_success) {
+    list_pop_back(&thread_current()->children);
     palloc_free_page (fn_copy);
     destroy_process_execute_info(pe_info);
+    free(ch_info);
     return TID_ERROR;
   }
   destroy_process_execute_info(pe_info);
+  palloc_free_page (fn_copy);
   return ch_info->child_tid;
 }
 
@@ -198,7 +209,7 @@ int process_wait (tid_t child_tid UNUSED) {
   
  // ASSERT(ch_info->wait_status != WAITING);
   int exit_status = ch_info->exit_status;
- // remove_child_struct(thread_current(), child_tid);
+  remove_child_struct(thread_current(), child_tid);
   return exit_status;
 }
 
@@ -209,6 +220,7 @@ void destroy_file_descriptors(struct thread* cur) {
       struct list_elem *e = list_pop_front (&(cur->file_list));
       struct file_info_t* f_info = list_entry(e, struct file_info_t, elem);
       file_close(f_info->file);
+      free(f_info);
     }
 }
 
