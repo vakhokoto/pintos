@@ -451,11 +451,11 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
   ASSERT (list != NULL);
   ASSERT (elem != NULL);
   ASSERT (less != NULL);
-
   for (e = list_begin (list); e != list_end (list); e = list_next (e))
     if (less (elem, e, aux))
       break;
-  return list_insert (e, elem);
+  list_insert (e, elem);
+  ASSERT(is_sorted(list_begin (list), list_end (list), less, NULL));
 }
 
 /* Iterates through LIST and removes all but the first in each
