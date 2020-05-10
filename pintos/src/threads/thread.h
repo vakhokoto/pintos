@@ -184,6 +184,7 @@ int thread_get_load_avg (void);
 // Advanced scheduler
 int calculate_priority(struct thread* t);
 void recalculate_recent_cpu(struct thread *t, void* load_avg_aux);
+void recalculate_priority(struct thread *t, void* pri_aux);
 fixed_point_t calculate_load_avg();
 
 #endif /* threads/thread.h */

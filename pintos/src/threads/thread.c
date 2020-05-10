@@ -147,6 +147,11 @@ fixed_point_t recalculate_load_avg() {
   return load_avg;
 }
 
+/* recalculates and sets priority */
+void recalculate_priority(struct thread *t, void* pri_aux) {
+  t->priority = calculate_priority(t);
+}
+
 /* recalculates and sets recent_cpu */
 void recalculate_recent_cpu(struct thread *t, void* load_avg_aux) {
   fixed_point_t load_avg = *(fixed_point_t*)load_avg_aux;
@@ -182,9 +187,9 @@ thread_tick (void)
     thread_foreach(&recalculate_recent_cpu, &load_avg);
   }
 
-  // if(timer_ticks() % 4 == 0) {
-  //   thread_foreach(&recalculate_recent_cpu, &load_avg);
-  // }
+  if(timer_ticks() % 4 == 0) {
+    thread_foreach(&recalculate_priority, NULL);
+  }
 
   if(!list_empty(&(wait_queue))){
     struct list_elem* e;
@@ -285,8 +290,9 @@ bool list_less (const struct list_elem *a, const struct list_elem *b, void *aux)
 }
 
 void changePriority(struct thread* tr){
-  list_remove(&(tr->elem));
-  list_insert_ordered(&ready_list, &(tr->elem), list_less, NULL);
+    if(tr->status != THREAD_READY) return;
+    list_remove(&(tr->elem));
+    list_insert_ordered(&ready_list, &(tr->elem), list_less, NULL);
 }
 
 void thread_sleep(int64_t tick){
@@ -589,7 +595,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   // Advanced scheduler
   t->nice = NICE_DEFAULT;
-  recalculate_recent_cpu(t, &load_avg);;
+  t->recent_cpu = fix_int(RECENT_CPU_DEFAULT);
+  // recalculate_recent_cpu(t, &load_avg);
 
   list_init(&t -> file_list);
 
