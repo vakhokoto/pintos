@@ -27,9 +27,9 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 
 /* Advanced scheduler */
-#define NICE_MIN 0                       /* Lowest nice.  */
-#define NICE_DEFAULT 20                  /* Default nice. */
-#define NICE_MAX -20                     /* Highest nice. */
+#define NICE_MIN 20                       /* Lowest nice.  */
+#define NICE_DEFAULT 0                  /* Default nice. */
+#define NICE_MAX 20                     /* Highest nice. */
 
 #define RECENT_CPU_DEFAULT 0             /* Default recent_cpu. */
 
