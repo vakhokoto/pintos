@@ -175,12 +175,16 @@ thread_tick (void)
   enum intr_level old_level = intr_disable ();
 
   // Advanced scheduler
-  thread_current()->recent_cpu = fix_add(thread_current()->recent_cpu, fix_int(1));
+  thread_current()->recent_cpu = fix_add(thread_current()->recent_cpu, fix_int(thread_current() != idle_thread));
   
   if(timer_ticks() % TIMER_FREQ == 0){
     recalculate_load_avg();
     thread_foreach(&recalculate_recent_cpu, &load_avg);
   }
+
+  // if(timer_ticks() % 4 == 0) {
+  //   thread_foreach(&recalculate_recent_cpu, &load_avg);
+  // }
 
   if(!list_empty(&(wait_queue))){
     struct list_elem* e;
@@ -261,8 +265,13 @@ thread_create (const char *name, int priority,
   list_init(&(t->children));
 
   // Advanced scheduler
-  t->recent_cpu = thread_current()->recent_cpu;
-
+  if(thread_mlfqs) {
+    // recalculate_recent_cpu(t, &load_avg);
+    t->recent_cpu = thread_current()->recent_cpu;
+    t->priority = calculate_priority(thread_current());
+    t->nice = thread_current()->nice;
+  }
+  
   /* Add to run queue. */
   thread_unblock (t);
   thread_yield();
@@ -458,6 +467,7 @@ void thread_set_nice (int nice UNUSED){
 
   struct thread* curr_t = thread_current();
   curr_t->nice = nice;
+  recalculate_recent_cpu(thread_current(), &load_avg);
   curr_t->priority = calculate_priority(curr_t);
   old_level = intr_disable();
   if(!list_empty(&ready_list)) {
@@ -579,7 +589,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   // Advanced scheduler
   t->nice = NICE_DEFAULT;
-  t->recent_cpu = fix_int(RECENT_CPU_DEFAULT);
+  recalculate_recent_cpu(t, &load_avg);;
 
   list_init(&t -> file_list);
 
