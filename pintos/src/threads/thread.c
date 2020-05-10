@@ -432,8 +432,13 @@ int calculate_priority(struct thread* t) {
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
-thread_set_priority (int new_priority){
-  thread_current()->priority = new_priority;
+thread_set_priority (int new_priority)
+{
+  if(!list_empty(&thread_current()->parent_don) && thread_current()->priority > new_priority){
+    thread_current()->old_priority = new_priority;
+  } else {
+    thread_current()->priority = thread_current()->old_priority = new_priority;
+  }
   thread_yield();
 }
 
@@ -567,6 +572,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->old_priority = priority;
   t->donated = NULL;
+  list_init(&(t->parent_don));
+  t->waiting = NULL;
   t->magic = THREAD_MAGIC;
   t->exit_status = -1;
 
