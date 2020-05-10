@@ -378,7 +378,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  thread_current()->priority = new_priority;
+  thread_current()->priority = thread_current()->old_priority = new_priority;
   thread_yield();
 }
 
@@ -508,6 +508,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->old_priority = priority;
   t->donated = NULL;
+  list_init(&(t->parent_don));
+  t->waiting = NULL;
   t->magic = THREAD_MAGIC;
   t->exit_status = -1;
 
