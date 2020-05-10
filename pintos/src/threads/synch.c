@@ -200,9 +200,12 @@ lock_acquire (struct lock *lock)
   if(lock->holder != NULL && thread_current()->priority > lock->holder->priority){
     thread_current()->donated = lock->holder;
     struct thread* temp = lock->holder;
-    while(temp->donated != NULL) temp = temp->donated;
+    list_insert_ordered(&lock->holder->parent_don, &thread_current()->parent_don_elem, list_less, NULL);
+    while(temp->donated != NULL){
+      temp->priority = thread_current()->priority;
+      temp = temp->donated;
+    } 
     temp->priority = thread_current()->priority;
-    list_insert_ordered(&temp->parent_don, &thread_current()->parent_don_elem, list_less, NULL);
     changePriority(temp);
   }
   thread_current()->waiting = lock;
