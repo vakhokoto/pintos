@@ -300,7 +300,7 @@ bool list_less (const struct list_elem *a, const struct list_elem *b, void *aux)
 
 /* updates thread priorities in ready_list */
 void changePriority(struct thread* tr){
-    if(tr->status != THREAD_READY) return;
+    if(thread_mlfqs && tr->status != THREAD_READY) return;
     list_remove(&(tr->elem));
     list_insert_ordered(&ready_list, &(tr->elem), list_less, NULL);
 }
@@ -610,7 +610,8 @@ init_thread (struct thread *t, const char *name, int priority)
   // Advanced scheduler
   t->nice = NICE_DEFAULT;
   /* a new thread hasn't got any time from cpu */
-  t->recent_cpu = fix_int(RECENT_CPU_DEFAULT);
+  if (thread_mlfqs)
+    t->recent_cpu = fix_int(RECENT_CPU_DEFAULT);
   // recalculate_recent_cpu(t, &load_avg);
   /* calculate priority for thread according to parent */ 
   if (thread_mlfqs)
