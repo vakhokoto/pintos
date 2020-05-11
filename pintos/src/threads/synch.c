@@ -364,6 +364,14 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
                           struct semaphore_elem, elem)->semaphore);
   }
 
+  struct list_elem* e;
+  printf("priority -> ");
+  for (e = list_begin(&(cond -> waiters)); e != list_end(&(cond -> waiters)); e = list_next(e)) {
+      struct thread *t_info = list_entry(e, struct thread, elem);
+    printf("%d | ", t_info -> priority);
+  }
+  printf("\n");
+
   if(temp != NULL && temp->priority > thread_current()->priority) {
     thread_yield();
   }
