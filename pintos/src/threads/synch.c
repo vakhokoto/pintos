@@ -303,7 +303,6 @@ cond_init (struct condition *cond)
 {
   ASSERT (cond != NULL);
 
-  printf("%d\n", thread_current() -> tid);
   list_init (&cond->waiters);
 }
 
@@ -341,6 +340,7 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
   list_push_back (&cond->waiters, &waiter.elem);
+  // printf("SHEMOVIDA\n");
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
