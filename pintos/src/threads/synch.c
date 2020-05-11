@@ -340,6 +340,7 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
   list_push_back (&cond->waiters, &waiter.elem);
+  printf("SHEMOVIDA\n");
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -364,6 +365,8 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
     list_sort (&cond->waiters, list_less_semaphores, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+
+    printf("SHEMOVIDA SIGNALIS UP\n");
   }
 }
 
@@ -392,4 +395,5 @@ bool list_less_semaphores (const struct list_elem *a, const struct list_elem *b,
   struct thread *t2 = list_entry(list_front(&sb -> semaphore.waiters), struct thread, elem);
 
   return t1 -> priority > t2 -> priority;
+  printf("COMPARIN\n");
 }
