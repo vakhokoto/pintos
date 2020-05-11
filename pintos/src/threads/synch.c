@@ -368,7 +368,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   printf("priority -> ");
   for (e = list_begin(&(cond -> waiters)); e != list_end(&(cond -> waiters)); e = list_next(e)) {
       struct thread *t_info = list_entry(e, struct thread, elem);
-    printf("%d | ", t_info -> priority);
+    printf("%d %d %s | ", t_info -> priority, t_info -> tid, t_info -> name);
   }
   printf("\n");
 
