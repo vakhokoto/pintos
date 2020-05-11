@@ -340,7 +340,6 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
   list_push_back (&cond->waiters, &waiter.elem);
-  printf("AAAA\n");
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -395,5 +394,4 @@ bool list_less_semaphores (const struct list_elem *a, const struct list_elem *b,
   struct thread *t2 = list_entry(list_front(&sb -> semaphore.waiters), struct thread, elem);
 
   return t1 -> priority > t2 -> priority;
-  printf("COMPARIN\n");
 }

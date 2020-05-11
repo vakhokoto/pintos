@@ -113,7 +113,6 @@ thread_init (void)
   list_init (&all_list);
   list_init (&wait_queue);
 
-  printf("AQ RAMES DAMATEBA UNDA?");
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
