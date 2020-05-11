@@ -302,7 +302,7 @@ void
 cond_init (struct condition *cond)
 {
   ASSERT (cond != NULL);
-
+  // initializes list of waiters
   list_init (&cond->waiters);
 }
 
@@ -340,7 +340,11 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
   list_push_back (&cond->waiters, &waiter.elem);
+<<<<<<< HEAD
   // printf("SHEMOVIDA\n");
+=======
+  printf("SHEMOVIDA\n");
+>>>>>>> dfc3ceb82a787f2b5b821bcf3372080e3f65067e
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -365,6 +369,8 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
     list_sort (&cond->waiters, list_less_semaphores, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+
+    printf("SHEMOVIDA SIGNALIS UP\n");
   }
 }
 
@@ -390,4 +396,8 @@ bool list_less_semaphores (const struct list_elem *a, const struct list_elem *b,
   struct semaphore_elem *sb = list_entry (b, struct semaphore_elem, elem);
 
   struct thread *t1 = list_entry(list_front(&sa -> semaphore.waiters), struct thread, elem);
+  struct thread *t2 = list_entry(list_front(&sb -> semaphore.waiters), struct thread, elem);
+
+  return t1 -> priority > t2 -> priority;
+  printf("COMPARIN\n");
 }
