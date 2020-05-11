@@ -301,6 +301,7 @@ cond_init (struct condition *cond)
 {
   ASSERT (cond != NULL);
 
+  printf("%d\n", thread_current() -> tid);
   list_init (&cond->waiters);
 }
 
@@ -334,11 +335,11 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  sema_init (&waiter.semaphore, 0);
-  list_insert_ordered (&cond->waiters, &waiter.elem, list_less, NULL);
-  lock_release (lock);
-  sema_down (&waiter.semaphore);
-  lock_acquire (lock);
+  sema_init(&waiter.semaphore, 0);
+  list_insert_ordered(&cond->waiters, &waiter.elem, list_less, NULL);
+  lock_release(lock);
+  sema_down(&waiter.semaphore);
+  lock_acquire(lock);
 }
 
 /* If any threads are waiting on COND (protected by LOCK), then
@@ -368,7 +369,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   printf("priority -> ");
   for (e = list_begin(&(cond -> waiters)); e != list_end(&(cond -> waiters)); e = list_next(e)) {
       struct thread *t_info = list_entry(e, struct thread, elem);
-    printf("%d %d %s | ", t_info -> priority, t_info -> tid, t_info -> name);
+    printf("%d %d | ", t_info -> priority, t_info -> tid);
   }
   printf("\n");
 
