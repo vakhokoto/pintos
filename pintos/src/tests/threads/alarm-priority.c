@@ -18,6 +18,7 @@ test_alarm_priority (void)
 {
   int i;
 
+  printf("this is it -> %d\n", (int)thread_mlfqs);
   /* This test does not work with the MLFQS. */
   ASSERT (!thread_mlfqs);
 

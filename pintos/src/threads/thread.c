@@ -199,9 +199,12 @@ thread_tick (void)
 
   if(!list_empty(&(wait_queue))){
     struct list_elem* e;
+    // current tick number
+    int64_t cur_ticks = timer_ticks();
+
     for (e = list_begin(&(wait_queue)); e != list_end(&(wait_queue)); e = list_next(e)) {
         struct thread* we = list_entry(e, struct thread, wait_elem);
-        if(we->tick <= timer_ticks()){
+        if(we->tick <= cur_ticks){
           list_remove (&(we->wait_elem));
           thread_unblock(we);
         }
@@ -469,7 +472,7 @@ int thread_get_priority (void){
 
 /* Sets the current thread's nice value to NICE. */
 void thread_set_nice (int nice UNUSED){
-  if(!thread_mlfqs) return;
+  // if(!thread_mlfqs) return;
   // ASSERT(nice >= NICE_MIN && nice <= NICE_MAX);
 
   enum intr_level old_level;
@@ -483,7 +486,8 @@ void thread_set_nice (int nice UNUSED){
   /* calculate  and set a new priority according to updated recent_cpu and nice value */
   curr_t->priority = calculate_priority(curr_t);
   /* update ready_list after changing priority */
-  changePriority(curr_t);
+  if (thread_mlfqs)
+    changePriority(curr_t);
   /* disable interaption */ // -> maybe not here?
   old_level = intr_disable();
   /* check if current thread is no longer with best priority */
@@ -609,7 +613,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->recent_cpu = fix_int(RECENT_CPU_DEFAULT);
   // recalculate_recent_cpu(t, &load_avg);
   /* calculate priority for thread according to parent */ 
-  t->priority = calculate_priority(t);
+  if (thread_mlfqs)
+    t->priority = calculate_priority(t);
 
   list_init(&t -> file_list);
 
