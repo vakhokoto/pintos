@@ -302,8 +302,7 @@ void
 cond_init (struct condition *cond)
 {
   ASSERT (cond != NULL);
-
-  printf("%d\n", thread_current() -> tid);
+  // initializes list of waiters
   list_init (&cond->waiters);
 }
 
@@ -390,4 +389,7 @@ bool list_less_semaphores (const struct list_elem *a, const struct list_elem *b,
   struct semaphore_elem *sb = list_entry (b, struct semaphore_elem, elem);
 
   struct thread *t1 = list_entry(list_front(&sa -> semaphore.waiters), struct thread, elem);
+  struct thread *t2 = list_entry(list_front(&sb -> semaphore.waiters), struct thread, elem);
+
+  return t1 -> priority > t2 -> priority;
 }
