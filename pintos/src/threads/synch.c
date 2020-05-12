@@ -364,8 +364,6 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
     list_sort (&cond->waiters, list_less_semaphores, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
-
-    printf("SHEMOVIDA SIGNALIS UP\n");
   }
 }
 

@@ -63,6 +63,8 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+bool thread_started = false;
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -141,6 +143,7 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+  thread_started = true;
 }
 
 /* recalculates, sets and returns load_avg */
@@ -289,7 +292,9 @@ thread_create (const char *name, int priority,
   
   /* Add to run queue. */
   thread_unblock (t);
-  thread_yield();
+  if (thread_current()->priority < priority){
+    thread_yield();
+  }
   return tid;
 }
 
@@ -322,6 +327,7 @@ void thread_sleep(int64_t tick){
 void
 thread_block (void)
 {
+  //ASSERT (thread_started);
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
@@ -412,6 +418,7 @@ thread_exit (void)
 void
 thread_yield (void)
 {
+  //ASSERT (thread_started);
   struct thread *cur = thread_current ();
   enum intr_level old_level;
 
