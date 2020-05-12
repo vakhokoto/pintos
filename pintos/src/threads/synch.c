@@ -123,7 +123,9 @@ sema_up (struct semaphore *sema)
   }
   sema->value++;
   if(temp != NULL && temp->priority > thread_current()->priority) {
+  /* ------------------------------------- need fix here ----------------------------------------- */
     thread_yield();
+  /* ------------------------------------- need fix here ----------------------------------------- */
   }
   intr_set_level (old_level);
 }
@@ -254,8 +256,8 @@ lock_release (struct lock *lock)
   enum intr_level old_level = intr_disable ();
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-  if(thread_current()->old_priority < thread_current()->priority ){
     bool donated = false;
+  if(thread_current()->old_priority < thread_current()->priority){
     struct list_elem* e;
     struct thread* temp;
     for (e = list_begin(&(thread_current()->parent_don)); e != list_end(&(thread_current()->parent_don)); e = list_next(e)) {
@@ -273,7 +275,9 @@ lock_release (struct lock *lock)
     } 
   }
   thread_current()->waiting = NULL;
+  /* ------------------------------------- need fix here ----------------------------------------- */
   thread_yield();
+  /* ------------------------------------- need fix here ----------------------------------------- */
   intr_set_level (old_level);
 }
 
