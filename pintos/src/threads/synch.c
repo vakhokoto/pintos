@@ -122,9 +122,11 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   }
   sema->value++;
+#ifdef USERPROG
   if(temp != NULL && temp->priority > thread_current()->priority) {
     thread_yield();
   }
+#endif
   intr_set_level (old_level);
 }
 
@@ -217,6 +219,12 @@ lock_acquire (struct lock *lock)
   }
   thread_current()->waiting = lock;
   sema_down (&lock->semaphore);
+
+  // // keep track of holding locks
+  // struct thread *cur_thread = thread_current();
+  // struct lock_elem *l_elem = malloc(sizeof(struct lock_elem));
+  // list_push_back(&cur_thread -> hold_locks, &l_elem -> elem);
+
   lock->holder = thread_current();
   intr_set_level (old_level);
 }
@@ -272,9 +280,29 @@ lock_release (struct lock *lock)
         thread_current()->priority = thread_current()->old_priority;
     } 
   }
+
+  // // keep track of holding locks
+  // struct thread *cur_thread = thread_current();
+  // struct lock_elem *l_elem = malloc(sizeof(struct lock_elem));
+  // struct list_elem *f = NULL, *e = NULL;
+
+  // for (e = list_begin(&cur_thread -> hold_locks); e != list_end(&cur_thread -> hold_locks); e = list_next(e)) {
+  //     struct lock_elem *l = list_entry(e, struct lock_elem, elem);
+
+  //     if (l -> lock == lock){
+  //       l_elem = l;
+  //       break;
+  //     }
+  // }
+
+  // list_remove(&l_elem -> elem);
+
+
   thread_current()->waiting = NULL;
-  thread_yield();
   intr_set_level (old_level);
+#ifndef USERPROG
+  thread_yield();
+#endif
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -340,11 +368,7 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
   list_push_back (&cond->waiters, &waiter.elem);
-<<<<<<< HEAD
-  // printf("SHEMOVIDA\n");
-=======
   printf("SHEMOVIDA\n");
->>>>>>> dfc3ceb82a787f2b5b821bcf3372080e3f65067e
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
