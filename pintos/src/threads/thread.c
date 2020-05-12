@@ -306,7 +306,6 @@ bool list_less (const struct list_elem *a, const struct list_elem *b, void *aux)
 
 /* updates thread priorities in ready_list */
 void changePriority(struct thread* tr){
-    if(thread_mlfqs && tr->status != THREAD_READY) return;
     list_remove(&(tr->elem));
     list_insert_ordered(&ready_list, &(tr->elem), list_less, NULL);
 }
@@ -480,11 +479,14 @@ int thread_get_priority (void){
 
 /* Sets the current thread's nice value to NICE. */
 void thread_set_nice (int nice UNUSED){
-  // if(!thread_mlfqs) return;
+  if(!thread_mlfqs) return;
   // ASSERT(nice >= NICE_MIN && nice <= NICE_MAX);
 
   enum intr_level old_level;
   ASSERT(!intr_context());
+
+  /* disable interaption */ // -> maybe not here?
+  old_level = intr_disable();
 
   struct thread* curr_t = thread_current();
   /* set a new value */
@@ -493,11 +495,10 @@ void thread_set_nice (int nice UNUSED){
   recalculate_recent_cpu(thread_current(), &load_avg);
   /* calculate  and set a new priority according to updated recent_cpu and nice value */
   curr_t->priority = calculate_priority(curr_t);
-  /* update ready_list after changing priority */
-  if (thread_mlfqs)
+  /* update ready_list after changing priority, if its in ready_list*/
+  if(curr_t->status == THREAD_READY)
     changePriority(curr_t);
-  /* disable interaption */ // -> maybe not here?
-  old_level = intr_disable();
+  
   /* check if current thread is no longer with best priority */
   if(!list_empty(&ready_list)) {
     struct thread* highest_t = list_entry(list_front(&ready_list), struct thread, elem);
