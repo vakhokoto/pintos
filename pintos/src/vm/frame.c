@@ -20,7 +20,7 @@ struct frame {
 };
 
 static struct list elems;  // frame list
-static struct lock lock;
+static struct lock flock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
@@ -45,12 +45,12 @@ unsigned my_hash (const void *elem, size_t size){
 void frame_init (size_t user_page_limit){
    // printf("-------------------------init-------------------------\n");
     list_init(&elems);
-    lock_init(&lock);
+    lock_init(&flock);
     hash_init(&map, my_hash, comp_func_bytes, NULL);
 }
 
 void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
-    lock_acquire(&lock);
+    lock_acquire(&flock);
     //printf("FRAME-GETTING PAGE\n");
 
     void* addr = palloc_get_page(flags);
@@ -64,24 +64,27 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         hash_insert(&map, &(fr -> elemH));
     }
 
-    lock_release(&lock);
+    lock_release(&flock);
 
     return addr;
 }
 
+
 void* evict_frame(){
     // TODO
     struct frame* evicted_frame = frame_to_evict();
+
     return NULL;
 }
 
 
 struct frame* frame_to_evict(){
-    return NULL;
+    // FIFO ALGORITHM NEEDS TO CHANGE
+    return list_pop_front(&elems);
 }
 
 void frame_free_page (void *upage){
-    lock_acquire(&lock);
+    lock_acquire(&flock);
 
 
     //printf("FRAME-Freeing PAGE\n");
@@ -100,5 +103,5 @@ void frame_free_page (void *upage){
         palloc_free_page(felem -> kpage);
     }
     
-    lock_release(&lock);
+    lock_release(&flock);
 }

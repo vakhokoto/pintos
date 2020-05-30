@@ -21,6 +21,7 @@
 #include "threads/malloc.h"
 #ifdef VM
 #include "vm/frame.h"
+#include "vm/page.h"
 #endif
 
 
@@ -663,7 +664,10 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
-
+  bool vm = true;
+  #ifdef VM
+  vm = supplemental_page_table_set_frame(&(t->supp_table), (uint8_t*)upage, (uint8_t*)kpage);
+  #endif
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
