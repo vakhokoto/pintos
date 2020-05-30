@@ -12,6 +12,9 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "devices/timer.h"
+#ifdef VM
+#include "vm/page.h"
+#endif
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -289,7 +292,9 @@ thread_create (const char *name, int priority,
     /* set parents recent_cpu */
     t->recent_cpu = thread_current()->recent_cpu;
   }
-  
+  #ifdef VM
+  hash_init(&(t->supp_table), hash_supp_table, comp_func_supp_table, NULL);
+  #endif
   /* Add to run queue. */
   thread_unblock (t);
   if (thread_current()->priority < priority){

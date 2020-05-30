@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
+#include "lib/kernel/hash.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -137,6 +138,11 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 //#endif
+
+   // #ifdef VM
+    /* Owned by userprog/process.c. */
+    struct hash supp_table;            /* Supplemental Page Table. */
+   // #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

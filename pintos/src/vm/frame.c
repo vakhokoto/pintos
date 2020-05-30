@@ -12,9 +12,9 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/hash.h"
 
-struct frame{
+struct frame {
     uint8_t *upage;
-    void *kpage;
+    uint8_t *kpage;
     struct list_elem elemL;
     struct hash_elem elemH;
 };
@@ -31,7 +31,7 @@ int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
     struct frame *aelem = hash_entry(a, struct frame, elemH);
     struct frame *belem = hash_entry(b, struct frame, elemH);
 
-    return aelem -> kpage > aelem -> kpage;
+    return aelem -> kpage > belem -> kpage;
 }
 
 /* wrapper hash function to hash using upage value */
