@@ -19,12 +19,13 @@ struct frame {
     struct hash_elem elemH;
 };
 
-static struct list elems;
+static struct list elems;  // frame list
 static struct lock lock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
-int evict_frame(void);
+void* evict_frame();
+void* pick_frame_to_evict();
 
 /* compares 2 frame elements */
 int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
@@ -54,7 +55,7 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 
     void* addr = palloc_get_page(flags);
     if(addr == NULL){
-        evict_frame();
+        addr = evict_frame();
     } else {
         struct frame *fr = malloc(sizeof(struct frame));
         fr -> kpage = addr;
@@ -68,8 +69,15 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     return addr;
 }
 
-int evict_frame(void){
+void* evict_frame(){
     // TODO
+    struct frame* evicted_frame = frame_to_evict();
+    return NULL;
+}
+
+
+struct frame* frame_to_evict(){
+    return NULL;
 }
 
 void frame_free_page (void *upage){
