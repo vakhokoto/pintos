@@ -22,6 +22,9 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#ifdef VM
+#include "vm/frame.h"
+#endif
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -96,6 +99,8 @@ main (void)
 
   /* Initialize memory system. */
   palloc_init (user_page_limit);
+  //SHEVCVALET
+  frame_init(user_page_limit);
   malloc_init ();
   paging_init ();
 

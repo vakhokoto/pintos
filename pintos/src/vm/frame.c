@@ -42,7 +42,7 @@ unsigned my_hash (const void *elem, size_t size){
 }
 
 void frame_init (size_t user_page_limit){
-    printf("-------------------------init-------------------------\n");
+   // printf("-------------------------init-------------------------\n");
     list_init(&elems);
     lock_init(&lock);
     hash_init(&map, my_hash, comp_func_bytes, NULL);
@@ -50,6 +50,7 @@ void frame_init (size_t user_page_limit){
 
 void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     lock_acquire(&lock);
+    //printf("FRAME-GETTING PAGE\n");
 
     void* addr = palloc_get_page(flags);
     if(addr == NULL){
@@ -68,10 +69,14 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 }
 
 int evict_frame(void){
+    // TODO
 }
 
 void frame_free_page (void *upage){
     lock_acquire(&lock);
+
+
+    //printf("FRAME-Freeing PAGE\n");
 
     struct frame temp_frame;
     temp_frame.upage = upage;

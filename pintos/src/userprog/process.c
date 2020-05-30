@@ -19,6 +19,9 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#ifdef VM
+#include "vm/frame.h"
+#endif
 
 
 static thread_func start_process NO_RETURN;
@@ -552,14 +555,22 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      //#ifdef VM
+      // SHEVCVALE
+      uint8_t *kpage = frame_get_page(PAL_USER, upage);
+      // #else
+      // uint8_t *kpage = palloc_get_page (PAL_USER);
+      // #endif
+      
       if (kpage == NULL)
         return false;
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          palloc_free_page (kpage);
+          // SHEVCVALET
+          //palloc_free_page (kpage);
+          frame_free_page(upage);
           return false;
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -567,7 +578,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable))
         {
-          palloc_free_page (kpage);
+          // SHEVCVALET
+          //palloc_free_page (kpage);
+          frame_free_page(upage);
           return false;
         }
 
@@ -587,7 +600,9 @@ setup_stack (void **esp, process_execute_info* pe_info)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  // SHEVCVALET UNDA IFDEF
+  kpage = frame_get_page(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -628,7 +643,9 @@ setup_stack (void **esp, process_execute_info* pe_info)
         *esp -= sizeof(void*);
         *((int*) *esp) = 0;
       } else
-        palloc_free_page (kpage);
+        //palloc_free_page (kpage);
+        // SHEVCVALET
+        frame_free_page(((uint8_t *) PHYS_BASE) - PGSIZE);
     }
   return success;
 }
