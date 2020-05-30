@@ -13,27 +13,29 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/hash.h"
 
-void supplemental_page_table_init() {
+void supplemental_page_table_init(struct hash* supplemental_page_table) {
     lock_init(&lock);
+    hash_init(supplemental_page_table, hash_supp_table, comp_func_supp_table, NULL);
 }
 
-struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage) {
+struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage) {
     lock_acquire(&lock);
     
     page_table_entry* pte = malloc(sizeof(page_table_entry));
     pte->upage = upage;
-    pte->kpage = kpage;
 
     struct page_table_entry* find;
     struct hash_elem* elem = hash_find(supplemental_page_table, pte);
-    if(elem) hash_entry(elem, struct page_table_entry, elemH);
+    if(elem) find = hash_entry(elem, struct page_table_entry, elemH);
     lock_release(&lock);
     return find;
 }
 
-void supplemental_page_table_set_frame(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage) {
+bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage) {
+    ASSERT(supplemental_page_table != NULL);
     lock_acquire(&lock);
-    
+    bool success = true;
+
     page_table_entry* new = malloc(sizeof(page_table_entry));
     new->upage = upage;
     new->kpage = kpage;
@@ -41,7 +43,25 @@ void supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
     struct hash_elem* old = hash_insert(supplemental_page_table, new); 
     
     /* already added */
-    if(old) free(new);
+    if(old) {
+        free(new);
+        success = false;
+    }
+    lock_release(&lock);
+    return success;
+}
 
+void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, void *upage){
+    lock_acquire(&lock);
+    
+    page_table_entry* pte = malloc(sizeof(page_table_entry));
+    pte->upage = upage;
+
+    struct page_table_entry* find;
+    struct hash_elem* elem = hash_find(supplemental_page_table, pte);
+    if(elem) {
+        find = hash_entry(elem, struct page_table_entry, elemH);
+        hash_delete(supplemental_page_table, &(find->elemH));
+    }
     lock_release(&lock);
 }

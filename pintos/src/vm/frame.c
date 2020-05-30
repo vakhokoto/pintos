@@ -1,4 +1,6 @@
 #include "threads/palloc.h"
+#include "threads/thread.h"
+#include "vm/page.h"
 #include <bitmap.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -20,7 +22,7 @@ struct frame {
 };
 
 static struct list elems;
-static struct lock lock;
+static struct lock flock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
@@ -37,19 +39,18 @@ int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
 /* wrapper hash function to hash using upage value */
 unsigned my_hash (const void *elem, size_t size){
     struct frame *real_elem = hash_entry((struct hash_elem*)elem, struct frame, elemH);
-
-    return hash_bytes(real_elem -> upage, size);
+    return hash_bytes(&(real_elem -> upage), size);
 }
 
 void frame_init (size_t user_page_limit){
    // printf("-------------------------init-------------------------\n");
     list_init(&elems);
-    lock_init(&lock);
+    lock_init(&flock);
     hash_init(&map, my_hash, comp_func_bytes, NULL);
 }
 
 void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
-    lock_acquire(&lock);
+    lock_acquire(&flock);
     //printf("FRAME-GETTING PAGE\n");
 
     void* addr = palloc_get_page(flags);
@@ -63,17 +64,18 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         hash_insert(&map, &(fr -> elemH));
     }
 
-    lock_release(&lock);
+    lock_release(&flock);
 
     return addr;
 }
 
 int evict_frame(void){
     // TODO
+    // supplemental_page_table_clear_frame(&(thread_current()->supp_table), );
 }
 
 void frame_free_page (void *upage){
-    lock_acquire(&lock);
+    lock_acquire(&flock);
 
 
     //printf("FRAME-Freeing PAGE\n");
@@ -92,5 +94,5 @@ void frame_free_page (void *upage){
         palloc_free_page(felem -> kpage);
     }
     
-    lock_release(&lock);
+    lock_release(&flock);
 }

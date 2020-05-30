@@ -293,7 +293,7 @@ thread_create (const char *name, int priority,
     t->recent_cpu = thread_current()->recent_cpu;
   }
   #ifdef VM
-  hash_init(&(t->supp_table), hash_supp_table, comp_func_supp_table, NULL);
+  supplemental_page_table_init(&(t->supp_table)); 
   #endif
   /* Add to run queue. */
   thread_unblock (t);

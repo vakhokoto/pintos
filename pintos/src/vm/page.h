@@ -28,11 +28,12 @@ static int comp_func_supp_table (struct hash_elem *a, struct hash_elem *b, void 
 /* wrapper hash function to hash using upage value */
 static unsigned hash_supp_table (const void *elem, size_t size){
     struct page_table_entry *real_elem = hash_entry((struct hash_elem*)elem, page_table_entry, elemH);
-    return hash_bytes(real_elem -> upage, size);
+    return hash_bytes(&(real_elem -> upage), size);
 }
 
-void supplemental_page_table_init();
-void supplemental_page_table_set_frame(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage);
-struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage);
+void supplemental_page_table_init(struct hash* supplemental_page_table);
+bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage);
+struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage);
+void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, void *upage);
 
 #endif
