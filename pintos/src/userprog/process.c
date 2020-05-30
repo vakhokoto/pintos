@@ -253,6 +253,9 @@ void process_exit (void) {
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      #ifdef VM
+      supplemental_page_table_destroy(&(thread_current()->supp_table));
+      #endif
   }
 
   /* update child's struct */
@@ -373,7 +376,7 @@ load (process_execute_info* pe_info, void (**eip) (void), void **esp)
 
 
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
+  t->pagedir = pagedir_create();
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
@@ -664,10 +667,7 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
-  bool vm = true;
-  #ifdef VM
-  vm = supplemental_page_table_set_frame(&(t->supp_table), (uint8_t*)upage, (uint8_t*)kpage);
-  #endif
+
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
