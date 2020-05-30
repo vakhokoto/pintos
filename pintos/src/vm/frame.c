@@ -11,6 +11,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "lib/kernel/hash.h"
+#include "vm/swap.h"
 
 struct frame {
     uint8_t *upage;
@@ -24,8 +25,9 @@ static struct lock flock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
-void* evict_frame();
-void* pick_frame_to_evict();
+void* evict_frame(enum palloc_flags flags);
+
+struct frame* pick_frame_to_evict();
 
 /* compares 2 frame elements */
 int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
@@ -69,16 +71,23 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     return addr;
 }
 
+/** Evicts */
+void* evict_frame(enum palloc_flags flags){
+    struct frame* to_evict = pick_frame_to_evict();
+    swap_idx_t idx = swap_add(to_evict->kpage);
+    // TODO DIRTY BITS THING
 
-void* evict_frame(){
-    // TODO
-    struct frame* evicted_frame = frame_to_evict();
-
-    return NULL;
+    frame_free_page (to_evict->upage);
+    void* frame_page = palloc_get_page(flags);
+    ASSERT(frame_page != NULL);
+    return frame_page;
 }
 
-
-struct frame* frame_to_evict(){
+/** Find the frame to be evicted
+ *  Currently uses FIFO algorithm
+ *  TODO LRU
+*/
+struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
     return list_pop_front(&elems);
 }
