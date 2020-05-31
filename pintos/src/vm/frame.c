@@ -1,6 +1,4 @@
 #include "threads/palloc.h"
-#include "threads/thread.h"
-#include "vm/page.h"
 #include <bitmap.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -13,6 +11,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "lib/kernel/hash.h"
+#include "vm/swap.h"
 
 struct frame {
     uint8_t *upage;
@@ -21,12 +20,14 @@ struct frame {
     struct hash_elem elemH;
 };
 
-static struct list elems;
+static struct list elems;  // frame list
 static struct lock flock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
-int evict_frame(void);
+void* evict_frame(enum palloc_flags flags);
+
+struct frame* pick_frame_to_evict();
 
 /* compares 2 frame elements */
 int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
@@ -39,7 +40,8 @@ int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
 /* wrapper hash function to hash using upage value */
 unsigned my_hash (const void *elem, size_t size){
     struct frame *real_elem = hash_entry((struct hash_elem*)elem, struct frame, elemH);
-    return hash_bytes(&(real_elem -> upage), size);
+
+    return hash_bytes(real_elem -> upage, size);
 }
 
 void frame_init (size_t user_page_limit){
@@ -55,7 +57,7 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 
     void* addr = palloc_get_page(flags);
     if(addr == NULL){
-        evict_frame();
+        addr = evict_frame();
     } else {
         struct frame *fr = malloc(sizeof(struct frame));
         fr -> kpage = addr;
@@ -69,9 +71,25 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     return addr;
 }
 
-int evict_frame(void){
-    // TODO
-    // supplemental_page_table_clear_frame(&(thread_current()->supp_table), );
+/** Evicts */
+void* evict_frame(enum palloc_flags flags){
+    struct frame* to_evict = pick_frame_to_evict();
+    swap_idx_t idx = swap_add(to_evict->kpage);
+    // TODO DIRTY BITS THING
+
+    frame_free_page (to_evict->upage);
+    void* frame_page = palloc_get_page(flags);
+    ASSERT(frame_page != NULL);
+    return frame_page;
+}
+
+/** Find the frame to be evicted
+ *  Currently uses FIFO algorithm
+ *  TODO LRU
+*/
+struct frame* pick_frame_to_evict(){
+    // FIFO ALGORITHM NEEDS TO CHANGE
+    return list_pop_front(&elems);
 }
 
 void frame_free_page (void *upage){
