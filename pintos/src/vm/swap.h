@@ -1,7 +1,7 @@
 #ifndef _VM_SWAP
 #define _VM_SWAP
 
-typedef int swap_idx_t;
+typedef size_t swap_idx_t;
 
 /* initializes the swap block */
 void swap_init();
