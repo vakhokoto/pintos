@@ -1,5 +1,5 @@
-#ifndef _VM_SWAP
-#define _VM_SWAP
+#ifndef _VM_SWAP_H
+#define _VM_SWAP_H
 
 #include <stddef.h>
 #include <stdio.h>
@@ -38,5 +38,7 @@ static int comp_func_swap_table (struct hash_elem *a, struct hash_elem *b, void 
 
     return aelem->idx > belem->idx;
 }
+
+swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage);
 
 #endif
