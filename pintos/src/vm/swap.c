@@ -91,6 +91,18 @@ void swap_free(swap_idx_t idx){
     lock_release(&swap_access_lock);
 }
 
+swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
+    lock_acquire(&swap_access_lock);
+    
+    swap_table_entry* ste = malloc(sizeof(swap_table_entry));
+    ste->upage = upage;
+
+    struct swap_table_entry* find;
+    struct hash_elem* elem = hash_find(swap_table, ste);
+    if(elem) find = hash_entry(elem, struct swap_table_entry, elemH);
+    lock_release(&swap_access_lock);
+    return find->idx;
+}
 
 
 /**Swap Table*/
