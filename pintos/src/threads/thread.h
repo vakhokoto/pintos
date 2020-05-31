@@ -139,11 +139,11 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 //#endif
 
-   #ifdef VM
+   // #ifdef VM
     /* Owned by userprog/process.c. */
     struct hash supp_table;            /* Supplemental Page Table. */
-   #endif
-
+   // #endif
+    struct hash swap_table;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

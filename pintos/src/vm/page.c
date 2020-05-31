@@ -55,7 +55,7 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
 }
 
 /* Removes User page from Supplemental Page Table */
-void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, void *upage){
+void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, uint8_t *upage){
     lock_acquire(&lock);
     
     page_table_entry* pte = malloc(sizeof(page_table_entry));

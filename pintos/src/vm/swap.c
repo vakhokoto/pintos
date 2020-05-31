@@ -6,6 +6,7 @@
 #include "lib/kernel/bitmap.h"
 #include "threads/vaddr.h"
 #include "lib/stdbool.h"
+#include "vm/page.h"
 
 /* swap block */
 static struct block *swap_block;
@@ -61,9 +62,9 @@ swap_idx_t swap_add(void *kpage){
 }
 
 /* function to get page with the index from swap */
-void swap_get(swap_idx_t idx, void *kpage){
+uint8_t* swap_get(swap_idx_t idx){
+    void* kpage = malloc(SECTORS_PER_PAGE);
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
-    ASSERT(kpage != NULL);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
 
     lock_acquire(&swap_access_lock);
@@ -75,6 +76,7 @@ void swap_get(swap_idx_t idx, void *kpage){
     }
 
     lock_release(&swap_access_lock);
+    return (uint8_t*)kpage;
 }
 
 /* function to free and remove page from swap */
@@ -88,3 +90,12 @@ void swap_free(swap_idx_t idx){
 
     lock_release(&swap_access_lock);
 }
+
+
+
+/**Swap Table*/
+
+ void swap_table_init(struct hash* swap_table){
+    hash_init(swap_table, hash_swap_table, comp_func_swap_table, NULL);
+ }
+

@@ -11,8 +11,8 @@ struct lock lock;
 
 typedef struct page_table_entry {
     /* data */
-    void* upage;
-    void* kpage;
+    uint8_t* upage;
+    uint8_t* kpage;
 
     struct hash_elem elemH;
 } page_table_entry;
@@ -34,7 +34,7 @@ static unsigned hash_supp_table (const void *elem, size_t size){
 void supplemental_page_table_init(struct hash* supplemental_page_table);
 bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage);
 struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage);
-void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, void *upage);
+void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, uint8_t *upage);
 void supplemental_page_table_destroy(struct hash* supplemental_page_table);
 
 #endif

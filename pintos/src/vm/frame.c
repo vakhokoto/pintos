@@ -10,8 +10,10 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 #include "lib/kernel/hash.h"
 #include "vm/swap.h"
+#include "vm/page.h"
 
 struct frame {
     uint8_t *upage;
@@ -25,7 +27,7 @@ static struct lock flock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
-void* evict_frame(enum palloc_flags flags);
+uint8_t* evict_frame(enum palloc_flags flags);
 
 struct frame* pick_frame_to_evict();
 
@@ -51,13 +53,13 @@ void frame_init (size_t user_page_limit){
     hash_init(&map, my_hash, comp_func_bytes, NULL);
 }
 
-void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
+uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     lock_acquire(&flock);
     //printf("FRAME-GETTING PAGE\n");
 
-    void* addr = palloc_get_page(flags);
+    uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
-        addr = evict_frame();
+        addr = evict_frame(flags);
     } else {
         struct frame *fr = malloc(sizeof(struct frame));
         fr -> kpage = addr;
@@ -72,13 +74,19 @@ void *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 }
 
 /** Evicts */
-void* evict_frame(enum palloc_flags flags){
+uint8_t* evict_frame(enum palloc_flags flags){
     struct frame* to_evict = pick_frame_to_evict();
     swap_idx_t idx = swap_add(to_evict->kpage);
-    // TODO DIRTY BITS THING
 
+    swap_table_entry entry;
+    entry.upage = to_evict->upage;
+    entry.idx = idx;
+
+    hash_insert(&(thread_current()->supp_table),  &(entry.elemH));
+    // TODO DIRTY BITS THING
+    supplemental_page_table_clear_frame(&(thread_current()->supp_table), to_evict->upage);
     frame_free_page (to_evict->upage);
-    void* frame_page = palloc_get_page(flags);
+    uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
     return frame_page;
 }

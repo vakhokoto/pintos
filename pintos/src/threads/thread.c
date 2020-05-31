@@ -294,6 +294,7 @@ thread_create (const char *name, int priority,
   }
   #ifdef VM
   supplemental_page_table_init(&(t->supp_table)); 
+  //swap_table_init(&(t->swap_table)); 
   #endif
   /* Add to run queue. */
   thread_unblock (t);
