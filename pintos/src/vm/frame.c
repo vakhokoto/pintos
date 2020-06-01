@@ -57,19 +57,25 @@ void frame_init (size_t user_page_limit){
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     lock_acquire(&flock);
-    //printf("FRAME-GETTING PAGE\n");
+   // printf("FRAME-GETTING PAGE %d\n", upage);
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
+     //   printf("EVICTING PAGE %d\n", upage);
         addr = evict_frame(flags, upage);
     } else {
+       // printf("CREATING PAGE %d\n", addr);
         struct frame *fr = malloc(sizeof(struct frame));
         fr -> kpage = addr;
         fr -> upage = upage;
         fr -> pr = thread_current();
         list_push_back(&elems, &(fr -> elemL));
         hash_insert(&map, &(fr -> elemH));
+        supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
     }
+
+
+        //printf("FRAME-GETTING PAGE  DONE_____%d\n", upage);
 
     lock_release(&flock);
 
@@ -92,6 +98,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
     pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
+    supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, frame_page);
     return frame_page;
 }
 

@@ -160,22 +160,41 @@ page_fault (struct intr_frame *f)
       esp = thread_current()->saved_esp;
    }
 
+
+ //  printf("PAGE FAULT VAIME DEDAAA\n");
+   uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
+   if (not_present && is_user_vaddr(fault_addr)){
+       if (esp <= fault_addr|| fault_addr == f->esp-4 || fault_addr == f->esp-32) {
+       //  printf("Stack\n");
+         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+         pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+         return;
+       }
+   } 
+   // User mode (evicted pace)
   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f->cs){
-     if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_addr) != NULL){
+     if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
+    //  printf("SUPP IFF\n");
       struct hash swap_table = thread_current()->swap_table;
-      uint8_t* kpage = frame_get_page(PAL_USER, fault_addr);
-      swap_idx_t swap_idx = get_swap_idx(&swap_table,fault_addr);
+      uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+   
+      swap_idx_t swap_idx = get_swap_idx(&swap_table,fault_page);
       swap_get(swap_idx, kpage);
       return;
-     }
+     } 
+     // Stack grow
+    
   }
+  // Kernel
   if(!user) {
+    // printf("KKK IFF\n");
     f->eip = f->eax;
     f->eax = -1;
     return;
   }
   #endif
 
+//   printf("dwdawdwa IFF\n");
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

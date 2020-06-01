@@ -561,6 +561,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Get a page of memory. */
       //#ifdef VM
       // SHEVCVALE
+     // printf("LOADING SEGMENT\n");
       uint8_t *kpage = frame_get_page(PAL_USER, upage);
       // #else
       // uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -606,6 +607,7 @@ setup_stack (void **esp, process_execute_info* pe_info)
 
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   // SHEVCVALET UNDA IFDEF
+  //printf("------SETUPPING STACK\n");
   kpage = frame_get_page(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
   if (kpage != NULL)
     {
