@@ -70,6 +70,35 @@ void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, 
     lock_release(&lock);
 }
 
+/* Mapps File offset into tha Supplemental Page Table - call from Syscall SYS_MMAP */
+bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, uint8_t* upage, file_info_t* file_info) {
+    size_t i;
+    for(i = 0; i*PGSIZE < file_info->size; i++) {
+      if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), upage + i*PGSIZE))
+        return false;
+    }
+    return true;
+}
+
+/* Mapps File offset into tha Supplemental Page Table - call from Syscall SYS_MMAP */
+void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info) {
+    size_t i;
+    for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) {
+        //TODO
+
+    }
+}
+
+/* Unmapps File offset into tha Supplemental Page Table - call from Syscall SYS_MUNMMAP */
+void supplemental_page_table_unmap_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info) {
+    size_t i;
+    for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) {
+        //TODO
+        
+    }
+}
+
+
 /* destroy Supplemental Page Table */
 void supplemental_page_table_destroy(struct hash* supplemental_page_table) {
     ASSERT(supplemental_page_table != NULL);

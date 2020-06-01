@@ -10,7 +10,6 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/stdio.h"
 #ifdef VM
-#include "lib/user/syscall.h"
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
@@ -44,7 +43,7 @@ void read_argv(void *src, void *dst, size_t bytes);
 
 #ifdef VM
 mapid_t handle_mmap(int fd, uint8_t* upage);
-void handle_unmap(mapid_t map);
+void handle_munmap(mapid_t map);
 #endif
 
 static struct lock file_lock, buffer_lock;
@@ -133,9 +132,9 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       f->eax = handle_mmap(fd, upage);
       break;
     }case SYS_MUNMAP: {
-      mapid_t map;
-      read_argv(argv, &map, sizeof(mapid_t));
-      handle_unmap(map);
+      mapid_t mapping;
+      read_argv(argv, &mapping, sizeof(mapid_t));
+      handle_munmap(mapping);
       break;
     }
     #endif
@@ -499,23 +498,92 @@ static bool put_user (uint8_t *udst, uint8_t byte){
 }
 
 #ifdef VM
+
+/**
+ * Finds mmap info structure in its mmap list 
+ * Returns mmap_info_t structure pointer.
+ */ 
+file_info_t* get_mmap__info(int mid, struct list *mmap_table){
+  /* if empty close automatically */
+  if (list_empty(mmap_table)){
+    return NULL;
+  }
+  struct list_elem* e;
+  for (e = list_begin(mmap_table); e != list_end(mmap_table); e = list_next(e)) {
+      mmap_info_t* mmap_info = list_entry(e, mmap_info_t, elem);
+      if(mmap_info->mid == mid)
+        return mmap_info;
+  }
+  return NULL;
+}
+
+/**
+ * Finds file info structure in its mmap list 
+ * Returns file_info_t structure pointer.
+ */ 
+file_info_t* get_mmap_file_info(int fd, struct list *mmap_table){
+  /* if empty close automatically */
+  if (list_empty(mmap_table)){
+    return NULL;
+  }
+  struct list_elem* e;
+  for (e = list_begin(mmap_table); e != list_end(mmap_table); e = list_next(e)) {
+      mmap_info_t* mmap_info = list_entry(e, mmap_info_t, elem);
+      if(mmap_info->file_info->fd == fd)
+        return mmap_info->file_info;
+  }
+  return NULL;
+}
+
 mapid_t handle_mmap(int fd, uint8_t* upage) {
-  /* check fd */
+  /* check fd - input and output */
   if(fd == 0 || fd == 1) 
     return -1;
-  /* check user */
+  /* check user - */
   if(!upage || ((int)upage % PGSIZE) || !is_user_vaddr(upage))
     return -1;
 
   lock_acquire(&file_lock);
-  file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
-  // TODO
+  file_info_t* file_info = get_mmap_file_info(fd, &(thread_current()->mmap_table));
+
+  // may be file_reopen needed ?! idk...
+
+  /* check file - file exist - file opened - file size != 0 */
+  if(file_info && file_info->file && file_info->size > 0) {
+    /* Check if File can be mapped */
+    if(!supplemental_page_table_can_map_file(&(thread_current()->supp_table), upage, file_info))
+      return -1;
+
+    mmap_info_t* mmap_info = malloc(sizeof(struct mmap_info_t));
+    mmap_info->mid = list_size(&(thread_current()->mmap_table)) + 1;
+    mmap_info->file_info = file_info;
+    mmap_info->upage = upage;
+
+    supplemental_page_table_map_file(&(thread_current()->supp_table), mmap_info);
+
+    list_push_back(&(thread_current()->mmap_table), &(mmap_info->elem));
+
+    lock_release(&file_lock);
+    return mmap_info->mid;
+  }
+
   lock_release(&file_lock);
+  return -1;
 }
 
-void handle_unmap(mapid_t map) {
-  ASSERT(map > 0);
-  // TODO
+void handle_munmap(mapid_t mapping) {
+  lock_acquire(&file_lock);
+  mmap_info_t* mmap_info = get_mmap__info(mapping, &(thread_current()->mmap_table));
+  
+  if(mmap_info) {
+    supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
+
+    file_close(mmap_info->file_info->file);
+    list_remove(&(mmap_info->elem));
+    free(mmap_info);
+  }
+
+  lock_release(&file_lock);
 }
 
 #endif
