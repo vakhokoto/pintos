@@ -5,6 +5,7 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 #include "lib/kernel/hash.h"
 
 struct lock lock;
@@ -36,5 +37,9 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
 struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage);
 void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, uint8_t *upage);
 void supplemental_page_table_destroy(struct hash* supplemental_page_table);
+
+bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, uint8_t* upage, file_info_t* file_info);
+void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info);
+void supplemental_page_table_unmap_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info);
 
 #endif

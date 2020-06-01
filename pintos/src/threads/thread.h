@@ -94,6 +94,15 @@ typedef struct file_info_t{
    struct file *file;
 } file_info_t;
 
+typedef int mapid_t;
+/* store information of mapped file per process */
+typedef struct mmap_info_t {
+   struct list_elem elem;
+   struct file_info_t* file_info;
+   uint8_t* upage;
+   mapid_t mid;
+} mmap_info_t;
+
 /* The `elem' member has a dual purpose.  It can be an element in
    the run queue (thread.c), or it can be an element in a
    semaphore wait list (synch.c).  It can be used these two ways
@@ -144,6 +153,9 @@ struct thread
     struct hash supp_table;            /* Supplemental Page Table. */
    // #endif
     struct hash swap_table;
+
+    struct list mmap_table;            /* list of mapped files */
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
