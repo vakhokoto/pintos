@@ -39,7 +39,7 @@ void swap_init(){
 swap_idx_t swap_add(void *kpage){
     ASSERT (kpage != NULL);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
-    
+    void* ktemp = kpage;
     lock_acquire(&swap_access_lock);
 
     swap_idx_t idx = bitmap_scan(map, 0, SECTORS_PER_PAGE, false);
@@ -52,8 +52,8 @@ swap_idx_t swap_add(void *kpage){
     swap_idx_t i;
     for (i = idx; i < idx + SECTORS_PER_PAGE; i++){
         bitmap_mark(map, i);
-        kpage += BLOCK_SECTOR_SIZE;
-        block_write(swap_block, i, kpage);
+        ktemp += BLOCK_SECTOR_SIZE;
+        block_write(swap_block, i, ktemp);
     }
 
     lock_release(&swap_access_lock);
@@ -62,21 +62,19 @@ swap_idx_t swap_add(void *kpage){
 }
 
 /* function to get page with the index from swap */
-uint8_t* swap_get(swap_idx_t idx){
-    void* kpage = malloc(SECTORS_PER_PAGE);
+void swap_get(swap_idx_t idx, void* kpage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
-
+    void* ktemp = kpage;
     lock_acquire(&swap_access_lock);
 
     swap_idx_t i;
     for (i = idx; i < idx + SECTORS_PER_PAGE; i++){
-        kpage += BLOCK_SECTOR_SIZE;
-        block_read(swap_block, i, kpage);
+        ktemp += BLOCK_SECTOR_SIZE;
+        block_read(swap_block, i, ktemp);
     }
 
     lock_release(&swap_access_lock);
-    return (uint8_t*)kpage;
 }
 
 /* function to free and remove page from swap */

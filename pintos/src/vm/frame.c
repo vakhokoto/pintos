@@ -14,10 +14,12 @@
 #include "lib/kernel/hash.h"
 #include "vm/swap.h"
 #include "vm/page.h"
+#include "userprog/pagedir.h"
 
 struct frame {
     uint8_t *upage;
     uint8_t *kpage;
+    struct thread* pr;
     struct list_elem elemL;
     struct hash_elem elemH;
 };
@@ -27,7 +29,7 @@ static struct lock flock;
 static struct hash map;
 
 /* evicts frame and returns 0 else != 0 number */
-uint8_t* evict_frame(enum palloc_flags flags);
+uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage);
 
 struct frame* pick_frame_to_evict();
 
@@ -59,11 +61,12 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
-        addr = evict_frame(flags);
+        addr = evict_frame(flags, upage);
     } else {
         struct frame *fr = malloc(sizeof(struct frame));
         fr -> kpage = addr;
         fr -> upage = upage;
+        fr -> pr = thread_current();
         list_push_back(&elems, &(fr -> elemL));
         hash_insert(&map, &(fr -> elemH));
     }
@@ -74,20 +77,22 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 }
 
 /** Evicts */
-uint8_t* evict_frame(enum palloc_flags flags){
+uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     struct frame* to_evict = pick_frame_to_evict();
     swap_idx_t idx = swap_add(to_evict->kpage);
 
     swap_table_entry entry;
     entry.upage = to_evict->upage;
     entry.idx = idx;
-
+    
     hash_insert(&(thread_current()->supp_table),  &(entry.elemH));
     // TODO DIRTY BITS THING
-    supplemental_page_table_clear_frame(&(thread_current()->supp_table), to_evict->upage);
+    // supplemental_page_table_clear_frame(&(thread_current()->supp_table), to_evict->upage);
     frame_free_page (to_evict->upage);
+    pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
+    pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
     return frame_page;
 }
 
@@ -97,7 +102,12 @@ uint8_t* evict_frame(enum palloc_flags flags){
 */
 struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
-    return list_pop_front(&elems);
+    struct frame* temp = list_pop_front(&elems);
+    while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
+        list_push_back(&elems, temp);
+        temp = list_pop_front(&elems);
+    }
+    return temp;
 }
 
 void frame_free_page (void *upage){
