@@ -153,6 +153,13 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   #ifdef VM
+   uint8_t* esp;
+   if (user){
+      esp = f->esp;
+   } else {
+      esp = thread_current()->saved_esp;
+   }
+
   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f->cs){
      if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_addr) != NULL){
       struct hash swap_table = thread_current()->swap_table;
@@ -177,6 +184,7 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
+  /* killing process (can't handle page fault)*/
   kill (f);
 }
 

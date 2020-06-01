@@ -59,12 +59,15 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     handle_exit(-1);
     return;
   } 
+
   uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
   void* argv = f->esp + sizeof (uint32_t); 
   const char* cmd_line, file;
   int fd, status, i, pid;
   const void* buffer;
   unsigned size;
+
+  thread_current()->saved_esp = f->esp;
   switch(SYSCALL_NUM) {
     case SYS_PRACTICE: {
       read_argv(argv, &i, sizeof(i));

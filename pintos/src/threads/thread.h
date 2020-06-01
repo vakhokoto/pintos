@@ -128,6 +128,8 @@ struct thread
     struct thread* parent;              /* to reach exit code */
     int exit_status;                      /* exit code state */
 
+    uint8_t *saved_esp;                   /* Saving stack pointer */
+
     /* list of files opened */
     struct list file_list;
     struct file* my_file;
