@@ -87,7 +87,6 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     
     hash_insert(&(thread_current()->supp_table),  &(entry.elemH));
     // TODO DIRTY BITS THING
-    // supplemental_page_table_clear_frame(&(thread_current()->supp_table), to_evict->upage);
     frame_free_page (to_evict->upage);
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);

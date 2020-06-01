@@ -26,7 +26,7 @@ struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supple
     page_table_entry* pte = malloc(sizeof(page_table_entry));
     pte->upage = upage;
 
-    struct page_table_entry* find;
+    struct page_table_entry* find = NULL;
     struct hash_elem* elem = hash_find(supplemental_page_table, pte);
     if(elem) find = hash_entry(elem, struct page_table_entry, elemH);
     lock_release(&lock);

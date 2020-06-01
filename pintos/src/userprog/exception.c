@@ -152,14 +152,20 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-
   #ifdef VM
-  if (not_present && (fault_addr) && fault_addr >= f->cs){
-     struct hash swap_table = thread_current()->swap_table;
-     uint8_t* kpage = frame_get_page(PAL_USER, fault_addr);
-     swap_idx_t swap_idx = get_swap_idx(&swap_table,fault_addr);
-     swap_get(swap_idx, kpage);
-     return;
+  if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f->cs){
+     if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_addr) != NULL){
+      struct hash swap_table = thread_current()->swap_table;
+      uint8_t* kpage = frame_get_page(PAL_USER, fault_addr);
+      swap_idx_t swap_idx = get_swap_idx(&swap_table,fault_addr);
+      swap_get(swap_idx, kpage);
+      return;
+     }
+  }
+  if(!user) {
+    f->eip = f->eax;
+    f->eax = -1;
+    return;
   }
   #endif
 
