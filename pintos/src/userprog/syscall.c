@@ -9,7 +9,12 @@
 #include "filesys/file.h"
 #include "threads/vaddr.h"
 #include "lib/kernel/stdio.h"
-
+#ifdef VM
+#include "lib/user/syscall.h"
+#include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
+#endif
 
 #define PIECE_SIZE 100
 
@@ -36,6 +41,11 @@ bool buffer_available(void* buffer, unsigned size);
 static bool put_user (uint8_t *udst, uint8_t byte);
 static int get_user (const uint8_t *uaddr);
 void read_argv(void *src, void *dst, size_t bytes);
+
+#ifdef VM
+mapid_t handle_mmap(int fd, uint8_t* upage);
+void handle_unmap(mapid_t map);
+#endif
 
 static struct lock file_lock, buffer_lock;
 
@@ -114,7 +124,22 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       read_argv(argv, &fd, sizeof(fd));
       handle_close(fd); 
       break;
-    }default:
+    }
+    #ifdef VM
+    case SYS_MMAP: {
+      uint8_t* upage;
+      read_argv(argv, &fd, sizeof(fd));
+      read_argv(argv, &upage, sizeof(upage));
+      f->eax = handle_mmap(fd, upage);
+      break;
+    }case SYS_MUNMAP: {
+      mapid_t map;
+      read_argv(argv, &map, sizeof(mapid_t));
+      handle_unmap(map);
+      break;
+    }
+    #endif
+    default:
       printf("Not Recognized syscall."); 
       return;
   }
@@ -472,3 +497,25 @@ static bool put_user (uint8_t *udst, uint8_t byte){
   : "=&a" (error_code), "=m" (*udst) : "q" (byte));
   return error_code != -1;
 }
+
+#ifdef VM
+mapid_t handle_mmap(int fd, uint8_t* upage) {
+  /* check fd */
+  if(fd == 0 || fd == 1) 
+    return -1;
+  /* check user */
+  if(!upage || ((int)upage % PGSIZE) || !is_user_vaddr(upage))
+    return -1;
+
+  lock_acquire(&file_lock);
+  file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
+  // TODO
+  lock_release(&file_lock);
+}
+
+void handle_unmap(mapid_t map) {
+  ASSERT(map > 0);
+  // TODO
+}
+
+#endif
