@@ -110,7 +110,7 @@ struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
     struct frame* temp = list_pop_front(&elems);
     while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
-        list_push_back(&elems, temp);
+        list_push_back(&elems, &(temp->elemL));
         temp = list_pop_front(&elems);
     }
     return temp;
