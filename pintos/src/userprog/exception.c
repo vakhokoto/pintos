@@ -164,7 +164,7 @@ page_fault (struct intr_frame *f)
  //  printf("PAGE FAULT VAIME DEDAAA\n");
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
    if (not_present && is_user_vaddr(fault_addr)){
-       if (esp <= fault_addr|| fault_addr == f->esp-4 || fault_addr == f->esp-32) {
+       if (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32) {
        //  printf("Stack\n");
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
@@ -173,14 +173,14 @@ page_fault (struct intr_frame *f)
    } 
    // User mode (evicted pace)
   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f->cs){
-     if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
+     if(user && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
     //  printf("SUPP IFF\n");
-      struct hash swap_table = thread_current()->swap_table;
-      uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-   
-      swap_idx_t swap_idx = get_swap_idx(&swap_table,fault_page);
-      swap_get(swap_idx, kpage);
-      return;
+      swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
+      if(swap_idx != NULL){
+         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+         swap_get(swap_idx, kpage);
+         return;
+         }
      } 
      // Stack grow
     

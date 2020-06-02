@@ -24,6 +24,7 @@
 #include "threads/thread.h"
 #ifdef VM
 #include "vm/frame.h"
+#include "vm/swap.h"
 #endif
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -100,7 +101,10 @@ main (void)
   /* Initialize memory system. */
   palloc_init (user_page_limit);
   //SHEVCVALET
+  #ifdef VM
   frame_init(user_page_limit);
+  swap_init();
+  #endif
   malloc_init ();
   paging_init ();
 
