@@ -15,6 +15,10 @@ typedef struct page_table_entry {
     uint8_t* upage;
     uint8_t* kpage;
 
+    /* for files */
+    struct file *file;
+    size_t file_size; 
+    size_t offset;
     struct hash_elem elemH;
 } page_table_entry;
 
@@ -37,6 +41,7 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
 struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage);
 void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, uint8_t *upage);
 void supplemental_page_table_destroy(struct hash* supplemental_page_table);
+void page_table_entry_destroy(page_table_entry* pte);
 
 bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, uint8_t* upage, file_info_t* file_info);
 void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info);
