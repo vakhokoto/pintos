@@ -29,7 +29,7 @@ void swap_init(){
 
     swap_block = block_get_role(BLOCK_SWAP);
     lock_init(&swap_access_lock);
-    bcount = block_size(swap_block);
+    bcount = block_size(swap_block) / BLOCK_SECTOR_SIZE;
     map = bitmap_create(bcount);
 }
 
@@ -40,7 +40,9 @@ swap_idx_t swap_add(void *kpage){
     ASSERT (kpage != NULL);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     void* ktemp = kpage;
-    lock_acquire(&swap_access_lock);
+    if (!lock_held_by_current_thread(&swap_access_lock)){
+        lock_acquire(&swap_access_lock);
+    }
 
     swap_idx_t idx = bitmap_scan(map, 0, SECTORS_PER_PAGE, false);
 
@@ -52,8 +54,8 @@ swap_idx_t swap_add(void *kpage){
     swap_idx_t i;
     for (i = idx; i < idx + SECTORS_PER_PAGE; i++){
         bitmap_mark(map, i);
-        ktemp += BLOCK_SECTOR_SIZE;
         block_write(swap_block, i, ktemp);
+        ktemp += BLOCK_SECTOR_SIZE;
     }
 
     lock_release(&swap_access_lock);
@@ -66,12 +68,14 @@ void swap_get(swap_idx_t idx, void* kpage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     void* ktemp = kpage;
-    lock_acquire(&swap_access_lock);
+    if (!lock_held_by_current_thread(&swap_access_lock)){
+        lock_acquire(&swap_access_lock);
+    }
 
     swap_idx_t i;
     for (i = idx; i < idx + SECTORS_PER_PAGE; i++){
-        ktemp += BLOCK_SECTOR_SIZE;
         block_read(swap_block, i, ktemp);
+        ktemp += BLOCK_SECTOR_SIZE;
     }
 
     lock_release(&swap_access_lock);
@@ -82,7 +86,9 @@ void swap_free(swap_idx_t idx){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     
-    lock_acquire(&swap_access_lock);
+    if (!lock_held_by_current_thread(&swap_access_lock)){
+        lock_acquire(&swap_access_lock);
+    }
 
     bitmap_set_multiple(map, idx, SECTORS_PER_PAGE, false);
 
@@ -90,7 +96,9 @@ void swap_free(swap_idx_t idx){
 }
 
 swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
-    lock_acquire(&swap_access_lock);
+    if (!lock_held_by_current_thread(&swap_access_lock)){
+        lock_acquire(&swap_access_lock);
+    }
     
     swap_table_entry* ste = malloc(sizeof(swap_table_entry));
     if(ste == NULL){

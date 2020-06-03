@@ -139,7 +139,7 @@ block_write (struct block *block, block_sector_t sector, const void *buffer)
   block->write_cnt++;
 }
 
-/* Returns the number of sectors in BLOCK. */
+/* Returns the number of bytes in BLOCK. */
 block_sector_t
 block_size (struct block *block)
 {

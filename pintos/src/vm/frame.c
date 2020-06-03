@@ -14,12 +14,13 @@
 #include "lib/kernel/hash.h"
 #include "vm/swap.h"
 #include "vm/page.h"
+#include "threads/synch.h"
 #include "userprog/pagedir.h"
 
 struct frame {
     uint8_t *upage;
     uint8_t *kpage;
-    struct thread* pr;
+    struct thread *pr;
     struct list_elem elemL;
     struct hash_elem elemH;
 };
@@ -38,7 +39,7 @@ int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
     struct frame *aelem = hash_entry(a, struct frame, elemH);
     struct frame *belem = hash_entry(b, struct frame, elemH);
 
-    return aelem -> kpage > belem -> kpage;
+    return (aelem -> pr) -> pagedir > (belem -> pr) -> pagedir;
 }
 
 /* wrapper hash function to hash using upage value */
@@ -56,7 +57,9 @@ void frame_init (size_t user_page_limit){
 }
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
-    lock_acquire(&flock);
+    if (!lock_held_by_current_thread(&flock)){
+        lock_acquire(&flock);
+    }
    // printf("FRAME-GETTING PAGE %d\n", upage);
 
     uint8_t* addr = palloc_get_page(flags);
@@ -108,16 +111,20 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
 */
 struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
-    struct frame* temp = list_pop_front(&elems);
+    struct list_elem *tempL = list_pop_front(&elems);
+    struct frame *temp = list_entry(tempL, struct frame, elemL);
     while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
         list_push_back(&elems, &(temp->elemL));
-        temp = list_pop_front(&elems);
+        tempL = list_pop_front(&elems);
+        temp = list_entry(tempL, struct frame, elemL);
     }
     return temp;
 }
 
 void frame_free_page (void *upage){
-    lock_acquire(&flock);
+    if (!lock_held_by_current_thread(&flock)){
+        lock_acquire(&flock);
+    }
 
 
     //printf("FRAME-Freeing PAGE\n");
