@@ -101,12 +101,10 @@ main (void)
   /* Initialize memory system. */
   palloc_init (user_page_limit);
   //SHEVCVALET
-  #ifdef VM
-  frame_init(user_page_limit);
-  swap_init();
-  #endif
+  
   malloc_init ();
   paging_init ();
+
 
   /* Segmentation. */
 #ifdef USERPROG
@@ -139,6 +137,11 @@ main (void)
   printf ("Boot complete.\n");
 
   /* Run actions specified on kernel command line. */
+
+#ifdef VM
+  frame_init(user_page_limit);
+  swap_init();
+#endif
   run_actions (argv);
 
   /* Finish up. */

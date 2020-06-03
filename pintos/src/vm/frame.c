@@ -79,8 +79,10 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 
 
         //printf("FRAME-GETTING PAGE  DONE_____%d\n", upage);
-
-    lock_release(&flock);
+    
+     if (lock_held_by_current_thread(&flock)){
+        lock_release(&flock);
+    }
 
     return addr;
 }
@@ -96,8 +98,10 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     
     hash_insert(&(thread_current()->supp_table),  &(entry.elemH));
     // TODO DIRTY BITS THING
+
     frame_free_page (to_evict->upage);
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
+    palloc_free_page(to_evict->kpage);
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
     pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
@@ -143,5 +147,8 @@ void frame_free_page (void *upage){
         palloc_free_page(felem -> kpage);
     }
     
-    lock_release(&flock);
+      if (lock_held_by_current_thread(&flock)){
+        lock_release(&flock);
+    }
+
 }

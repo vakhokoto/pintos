@@ -179,6 +179,8 @@ page_fault (struct intr_frame *f)
       if(swap_idx != NULL){
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          swap_get(swap_idx, kpage);
+         // AQ vamateb swap frees
+         swap_free(swap_idx);
          return;
          }
      } 

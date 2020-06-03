@@ -26,10 +26,10 @@ static struct lock swap_access_lock;
 /* initializes the swap block */
 void swap_init(){
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
-
     swap_block = block_get_role(BLOCK_SWAP);
+    ASSERT(swap_block != NULL);
     lock_init(&swap_access_lock);
-    bcount = block_size(swap_block) / BLOCK_SECTOR_SIZE;
+    bcount = block_size(swap_block);
     map = bitmap_create(bcount);
 }
 
