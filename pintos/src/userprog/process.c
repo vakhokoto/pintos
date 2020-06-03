@@ -559,13 +559,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      //#ifdef VM
-      // SHEVCVALE
-     // printf("LOADING SEGMENT\n");
+      #ifdef VM
       uint8_t *kpage = frame_get_page(PAL_USER, upage);
-      // #else
-      // uint8_t *kpage = palloc_get_page (PAL_USER);
-      // #endif
+      #else
+      uint8_t *kpage = palloc_get_page (PAL_USER);
+      #endif
       
       if (kpage == NULL)
         return false;
@@ -574,8 +572,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           // SHEVCVALET
-          //palloc_free_page (kpage);
+          #ifdef VM
           frame_free_page(upage);
+          #else
+          palloc_free_page (kpage);
+          #endif
           return false;
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -584,8 +585,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       if (!install_page (upage, kpage, writable))
         {
           // SHEVCVALET
-          //palloc_free_page (kpage);
+          #ifdef VM
           frame_free_page(upage);
+          #else
+          palloc_free_page (kpage);
+          #endif
           return false;
         }
 
@@ -604,11 +608,13 @@ setup_stack (void **esp, process_execute_info* pe_info)
 {
   uint8_t *kpage;
   bool success = false;
-
-  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  #ifdef VM
+  kpage = frame_get_page(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
+  #else
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  #endif
   // SHEVCVALET UNDA IFDEF
   //printf("------SETUPPING STACK\n");
-  kpage = frame_get_page(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -648,10 +654,15 @@ setup_stack (void **esp, process_execute_info* pe_info)
 
         *esp -= sizeof(void*);
         *((int*) *esp) = 0;
-      } else
-        //palloc_free_page (kpage);
-        // SHEVCVALET
+      } else{
+        #ifdef VM
         frame_free_page(((uint8_t *) PHYS_BASE) - PGSIZE);
+        #else
+        palloc_free_page (kpage);
+        #endif
+        // SHEVCVALET
+      }
+        
     }
   return success;
 }

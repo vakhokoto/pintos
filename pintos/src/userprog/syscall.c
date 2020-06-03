@@ -8,6 +8,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/vaddr.h"
+#include "threads/palloc.h"
 #include "lib/kernel/stdio.h"
 #ifdef VM
 #include "vm/frame.h"
@@ -47,7 +48,7 @@ void handle_munmap(mapid_t map);
 #endif
 
 static struct lock file_lock, buffer_lock;
-
+struct intr_frame *fu;
 void syscall_init (void) {
   lock_init(&file_lock);
   lock_init(&buffer_lock);
@@ -66,7 +67,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
   int fd, status, i, pid;
   const void* buffer;
   unsigned size;
-
+  fu = f;
   thread_current()->saved_esp = f->esp;
   switch(SYSCALL_NUM) {
     case SYS_PRACTICE: {
@@ -458,12 +459,24 @@ bool buffer_available(void* buffer, unsigned size){
 
   for (address = buffer; address < (char*) buffer + size; address += PGSIZE){
     if (pagedir_get_page(cur_thread->pagedir, address) == NULL){
+      // printf("pirveli pagedir\n");
       result = false;
     }
   }
 
   if (pagedir_get_page(cur_thread->pagedir, (char*)buffer + size - 1) == NULL){
-    result = false;
+    // printf("meore pagedir\n");
+    if(fu->esp < (char*)buffer + size - 1){
+      #ifdef VM
+      uint8_t* fault_page = (uint8_t*)pg_round_down((char*)buffer + size - 1);
+      uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+      pagedir_set_page(cur_thread->pagedir, fault_page, kpage, true);
+      #else
+      result = false;
+      #endif
+    } else {
+      result = false;
+    }
   }
   return result;
 }
