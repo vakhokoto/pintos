@@ -100,7 +100,6 @@ main (void)
 
   /* Initialize memory system. */
   palloc_init (user_page_limit);
-  //SHEVCVALET
   
   malloc_init ();
   paging_init ();

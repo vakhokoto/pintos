@@ -550,6 +550,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
+//  printf("LOADING\n");
   while (read_bytes > 0 || zero_bytes > 0)
     {
       /* Calculate how to fill this page.
@@ -590,6 +591,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           #else
           palloc_free_page (kpage);
           #endif
+
+         // printf("bbbbbb\n");
           return false;
         }
 
@@ -683,6 +686,11 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
+    // if (pagedir_get_page (t->pagedir, upage) != NULL){
+    //   printf("Not NULL %d  %d\n", upage, kpage);
+    // } else {
+    //   printf("INSTALLING %d %d\n", upage, kpage);
+    // }
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }

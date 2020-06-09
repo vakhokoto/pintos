@@ -56,6 +56,7 @@ void syscall_init (void) {
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
+
   if(!buffer_available(f->esp, sizeof(int))){
     handle_exit(-1);
     return;
@@ -470,6 +471,7 @@ bool buffer_available(void* buffer, unsigned size){
       #ifdef VM
       uint8_t* fault_page = (uint8_t*)pg_round_down((char*)buffer + size - 1);
       uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+     // printf("buffer sett %d %d\n", fault_page, kpage);
       pagedir_set_page(cur_thread->pagedir, fault_page, kpage, true);
       #else
       result = false;

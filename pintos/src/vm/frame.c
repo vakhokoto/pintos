@@ -57,10 +57,8 @@ void frame_init (size_t user_page_limit){
 }
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
-    if (!lock_held_by_current_thread(&flock)){
-        lock_acquire(&flock);
-    }
-   // printf("FRAME-GETTING PAGE %d\n", upage);
+    lock_acquire(&flock);
+    //printf("FRAME-GETTING PAGE %d\n", upage);
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
@@ -80,15 +78,15 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 
         //printf("FRAME-GETTING PAGE  DONE_____%d\n", upage);
     
-     if (lock_held_by_current_thread(&flock)){
-        lock_release(&flock);
-    }
+    lock_release(&flock);
 
     return addr;
 }
 
 /** Evicts */
 uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
+    //debug_backtrace();
+
     struct frame* to_evict = pick_frame_to_evict();
     swap_idx_t idx = swap_add(to_evict->kpage);
 
@@ -104,7 +102,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     palloc_free_page(to_evict->kpage);
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
-    pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
+ //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
     supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, frame_page);
     return frame_page;
 }
@@ -126,9 +124,8 @@ struct frame* pick_frame_to_evict(){
 }
 
 void frame_free_page (void *upage){
-    if (!lock_held_by_current_thread(&flock)){
-        lock_acquire(&flock);
-    }
+  //  debug_backtrace();
+   // NO synchronization necessary for 
 
 
     //printf("FRAME-Freeing PAGE\n");
@@ -147,8 +144,5 @@ void frame_free_page (void *upage){
         palloc_free_page(felem -> kpage);
     }
     
-      if (lock_held_by_current_thread(&flock)){
-        lock_release(&flock);
-    }
 
 }
