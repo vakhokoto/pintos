@@ -161,15 +161,16 @@ page_fault (struct intr_frame *f)
    }
 
 
-   //printf("PAGE FAULT VAIME DEDAAA\n");
+   //printf("PAGE FAULT VAIME DEDAAA &p \n", esp);
   // debug_backtrace_all();
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
    if (not_present && is_user_vaddr(fault_addr)){
        if (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32) {
-        // printf("Stack\n");
+   
+       //  printf("Stack\n");
         // AQ GVINDA ZERO PAGE 
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-         //printf("dajwhdwkahd\n");
+       //  printf("dajwhdwkahd\n");
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
          return;
        }

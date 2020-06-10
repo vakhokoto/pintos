@@ -57,28 +57,28 @@ void frame_init (size_t user_page_limit){
 }
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
-    lock_acquire(&flock);
+    //lock_acquire(&flock);
     //printf("FRAME-GETTING PAGE %d\n", upage);
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
-     //   printf("EVICTING PAGE %d\n", upage);
+       // printf("EVICTING PAGE %d\n", upage);
         addr = evict_frame(flags, upage);
     } else {
-       // printf("CREATING PAGE %d\n", addr);
+      //  printf("MALOCAMDE PAGE %d\n", addr);
         struct frame *fr = malloc(sizeof(struct frame));
+     //   printf("MALOKIS MERE PAGE %d\n", addr);
+
         fr -> kpage = addr;
         fr -> upage = upage;
         fr -> pr = thread_current();
+        lock_acquire(&flock);
         list_push_back(&elems, &(fr -> elemL));
-        hash_insert(&map, &(fr -> elemH));
+        hash_insert(&map, &(fr -> elemH));   
+        lock_release(&flock);
         supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
     }
 
-
-        //printf("FRAME-GETTING PAGE  DONE_____%d\n", upage);
-    
-    lock_release(&flock);
 
     return addr;
 }
@@ -86,24 +86,34 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 /** Evicts */
 uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     //debug_backtrace();
-
+    //printf("EVICTING method\n");
     struct frame* to_evict = pick_frame_to_evict();
-    swap_idx_t idx = swap_add(to_evict->kpage);
+         //   printf("PICKED method\n");
 
-    swap_table_entry entry;
-    entry.upage = to_evict->upage;
-    entry.idx = idx;
+    swap_idx_t idx = swap_add(to_evict->kpage);
+    //    printf("SWAPPS method\n");
+
+    swap_table_entry* entry = malloc(sizeof(swap_table_entry));
+    //printf("%d nnn\n", entry == NULL);
+    entry->upage = to_evict->upage;
+    entry->idx = idx;
     
-    hash_insert(&(thread_current()->supp_table),  &(entry.elemH));
+      //      printf("inserting mde method\n");
+
+    hash_insert(&(thread_current()->swap_table),  &(entry->elemH));
     // TODO DIRTY BITS THING
+    //    printf("inserting method\n");
 
     frame_free_page (to_evict->upage);
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
     palloc_free_page(to_evict->kpage);
+      //  printf("freeing method\n");
+
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
     supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, frame_page);
+ //   printf("END OF FREE\n");
     return frame_page;
 }
 
