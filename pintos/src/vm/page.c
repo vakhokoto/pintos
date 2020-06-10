@@ -21,7 +21,7 @@ void supplemental_page_table_init(struct hash* supplemental_page_table) {
 
 /* Returns Kernel Page entry according to the User Page */
 struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supplemental_page_table, uint8_t* upage) {
-  //  lock_acquire(&lock);
+    //lock_acquire(&lock);
     
     page_table_entry* pte = malloc(sizeof(page_table_entry));
     pte->upage = upage;
@@ -29,15 +29,14 @@ struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supple
     struct page_table_entry* find = NULL;
     struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
     if(elem) find = hash_entry(elem, struct page_table_entry, elemH);
-   // lock_release(&lock);
+    //lock_release(&lock);
     return find;
 }
 
 /* Sets User page into Supplemental Page Table */
 bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uint8_t* upage, uint8_t* kpage) {
     ASSERT(supplemental_page_table != NULL);
-  //  lock_acquire(&lock);
-    bool success = true;
+   // lock_acquire(&lock);
 
     page_table_entry* new = malloc(sizeof(page_table_entry));
     new->upage = upage;
@@ -47,11 +46,10 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
     
     /* already added */
     if(old) {
-        free(new);
-        success = false;
+        hash_replace(supplemental_page_table, &(new->elemH));
     }
    // lock_release(&lock);
-    return success;
+    return true;
 }
 
 /* Removes User page from Supplemental Page Table */
@@ -62,12 +60,12 @@ void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, 
     pte->upage = upage;
 
     struct page_table_entry* find;
-    struct hash_elem* elem = hash_find(supplemental_page_table, pte);
+    struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
     if(elem) {
         find = hash_entry(elem, struct page_table_entry, elemH);
         hash_delete(supplemental_page_table, &(find->elemH));
     }
-   // lock_release(&lock);
+ //   lock_release(&lock);
 }
 
 /* Mapps File offset into tha Supplemental Page Table - call from Syscall SYS_MMAP */

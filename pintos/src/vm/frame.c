@@ -76,8 +76,8 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         list_push_back(&elems, &(fr -> elemL));
         hash_insert(&map, &(fr -> elemH));   
         lock_release(&flock);
-        supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
     }
+    supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
 
 
     return addr;
@@ -112,7 +112,6 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
-    supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, frame_page);
  //   printf("END OF FREE\n");
     return frame_page;
 }
