@@ -28,7 +28,7 @@ struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supple
 
     struct page_table_entry* find = NULL;
     struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
-    if(elem) find = hash_entry(elem, struct page_table_entry, elemH);
+    if(elem != NULL) find = hash_entry(elem, struct page_table_entry, elemH);
     //lock_release(&lock);
     return find;
 }
@@ -41,11 +41,11 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
     page_table_entry* new = malloc(sizeof(page_table_entry));
     new->upage = upage;
     new->kpage = kpage;
-    struct hash_elem* old = hash_insert(supplemental_page_table, new); 
-    // struct hash_elem* old = hash_insert(supplemental_page_table, &(new->elemH)); 
+    // struct hash_elem* old = hash_insert(supplemental_page_table, new); 
+    struct hash_elem* old = hash_insert(supplemental_page_table, &(new->elemH)); 
     
     /* already added */
-    if(old) {
+    if(old != NULL) {
         hash_replace(supplemental_page_table, &(new->elemH));
     }
    // lock_release(&lock);
@@ -61,7 +61,7 @@ void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, 
 
     struct page_table_entry* find;
     struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
-    if(elem) {
+    if(elem != NULL) {
         find = hash_entry(elem, struct page_table_entry, elemH);
         hash_delete(supplemental_page_table, &(find->elemH));
     }

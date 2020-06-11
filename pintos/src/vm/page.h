@@ -11,6 +11,7 @@
 struct lock lock;
 
 typedef struct page_table_entry {
+    struct hash_elem elemH;
     /* data */
     uint8_t* upage;
     uint8_t* kpage;
@@ -19,7 +20,6 @@ typedef struct page_table_entry {
     struct file *file;
     size_t file_size; 
     size_t offset;
-    struct hash_elem elemH;
 } page_table_entry;
 
 /* compares 2 frame elements */
