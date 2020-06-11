@@ -72,8 +72,10 @@ void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, 
 bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, uint8_t* upage, file_info_t* file_info) {
     size_t i;
     for(i = 0; i*PGSIZE <= file_info->size; i++) { // think about <=
-      if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), upage + i*PGSIZE))
+      page_table_entry* entry = supplemental_page_table_lookup_page(&(thread_current()->supp_table), upage + i*PGSIZE);
+      if(entry){
         return false;
+      }
     }
     return true;
 }
@@ -86,7 +88,11 @@ void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap
         pte->upage = mmap_info->upage + i*PGSIZE;
         pte->file = mmap_info->file_info->file;
         struct hash_elem* old = hash_insert(supplemental_page_table, &(pte->elemH));
-        ASSERT(old != NULL);
+        if (old){
+            page_table_entry* oldH = hash_entry(old,  struct page_table_entry, elemH);
+           // printf("OLDONE %d %d\n NEWONE %d %d", oldH->kpage, oldH->upage, pte->kpage, pte->upage);
+        }
+        ASSERT(old == NULL);
     }
 }
 

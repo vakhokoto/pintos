@@ -62,9 +62,9 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
-    //    printf("EVICTING PAGE %p\n", upage);
+       // printf("1) EVICTING PAGE FOR THIS ADDRESS %p\n", upage);
         addr = evict_frame(flags, upage);
-        // printf("evicter %p\n", addr);
+       // printf("3) NEW FRAME CREATED %p -> %p\n", upage, addr);
     } else {
       //  printf("MALOCAMDE PAGE %d\n", addr);
         struct frame *fr = malloc(sizeof(struct frame));
@@ -87,7 +87,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     //debug_backtrace();
     //printf("EVICTING method\n");
     struct frame* to_evict = pick_frame_to_evict();
-         //   printf("PICKED method\n");
+    //printf("2) PICKED frame to evict:\n  ---- %p %p\n", to_evict->upage, to_evict->kpage);
 
     swap_idx_t idx = swap_add(to_evict->kpage);
     //    printf("SWAPPS method %d\n", idx == NULL);
@@ -104,7 +104,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     // TODO DIRTY BITS THING
     //    printf("inserting method\n");
 
-    frame_free_page (to_evict->upage);
+    //frame_free_page (to_evict->upage);
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
     palloc_free_page(to_evict->kpage);
 
@@ -123,18 +123,27 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     return frame_page;
 }
 
+//0x804a000 0x8049000
+
 /** Find the frame to be evicted
  *  Currently uses FIFO algorithm
  *  TODO LRU
 */
 struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
+    //printf("PICKING A FRAME TO EVICT\n");
     struct list_elem *tempL = list_pop_front(&elems);
+    //printf("PICKING A POPED\n");
+
     struct frame *temp = list_entry(tempL, struct frame, elemL);
     while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
         list_push_back(&elems, &(temp->elemL));
         tempL = list_pop_front(&elems);
         temp = list_entry(tempL, struct frame, elemL);
+        if( pagedir_is_accessed(temp->pr->pagedir, temp->upage)) {
+            pagedir_set_accessed(temp->pr->pagedir, temp->upage, false);
+         }
+      //  printf("WHILE %p %d %d\n", temp->upage, (pagedir_is_accessed(temp->pr->pagedir, temp->upage)), (pagedir_is_dirty(temp->pr->pagedir, temp->upage)));
     }
     return temp;
 }
