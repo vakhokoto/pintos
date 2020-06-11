@@ -27,7 +27,7 @@ static int comp_func_supp_table (struct hash_elem *a, struct hash_elem *b, void 
     struct page_table_entry *aelem = hash_entry(a, page_table_entry, elemH);
     struct page_table_entry *belem = hash_entry(b, page_table_entry, elemH);
 
-    return aelem->kpage > belem->kpage;
+    return aelem->upage > belem->upage;
 }
 
 /* wrapper hash function to hash using upage value */

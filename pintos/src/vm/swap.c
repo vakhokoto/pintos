@@ -31,6 +31,7 @@ void swap_init(){
     lock_init(&swap_access_lock);
     bcount = block_size(swap_block);
     map = bitmap_create(bcount);
+    ASSERT(map != NULL);
 }
 
 /* function to add page to ram and returns position
@@ -45,7 +46,6 @@ swap_idx_t swap_add(void *kpage){
     }
 
     swap_idx_t idx = bitmap_scan(map, 0, SECTORS_PER_PAGE, false);
-
     if (idx == BITMAP_ERROR){
         lock_release(&swap_access_lock);
         return -1;
@@ -57,7 +57,7 @@ swap_idx_t swap_add(void *kpage){
         block_write(swap_block, i, ktemp);
         ktemp += BLOCK_SECTOR_SIZE;
     }
-
+    bitmap_set(map, idx, true);
     lock_release(&swap_access_lock);
 
     return idx;
@@ -103,7 +103,7 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     swap_table_entry* ste = malloc(sizeof(swap_table_entry));
     if(ste == NULL){
         lock_release(&swap_access_lock);
-        return NULL;
+        return -1;
     } 
     ste->upage = upage;
 
@@ -111,7 +111,7 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     struct hash_elem* elem = hash_find(swap_table, &(ste->elemH));
     if(elem) find = hash_entry(elem, struct swap_table_entry, elemH);
     lock_release(&swap_access_lock);
-    return elem ? find->idx : NULL;
+    return elem ? find->idx : -1;
 }
 
 

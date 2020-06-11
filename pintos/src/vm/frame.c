@@ -58,12 +58,13 @@ void frame_init (size_t user_page_limit){
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     //lock_acquire(&flock);
-    //printf("FRAME-GETTING PAGE %d\n", upage);
+    // printf("FRAME-GETTING PAGE %p\n", upage);
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
-       // printf("EVICTING PAGE %d\n", upage);
+    //    printf("EVICTING PAGE %p\n", upage);
         addr = evict_frame(flags, upage);
+        // printf("evicter %p\n", addr);
     } else {
       //  printf("MALOCAMDE PAGE %d\n", addr);
         struct frame *fr = malloc(sizeof(struct frame));
@@ -78,8 +79,6 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         lock_release(&flock);
     }
     supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
-
-
     return addr;
 }
 
@@ -91,7 +90,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
          //   printf("PICKED method\n");
 
     swap_idx_t idx = swap_add(to_evict->kpage);
-    //    printf("SWAPPS method\n");
+    //    printf("SWAPPS method %d\n", idx == NULL);
 
     swap_table_entry* entry = malloc(sizeof(swap_table_entry));
     //printf("%d nnn\n", entry == NULL);
@@ -100,17 +99,25 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     
       //      printf("inserting mde method\n");
 
-    hash_insert(&(thread_current()->swap_table),  &(entry->elemH));
+    hash_insert(&(to_evict->pr->swap_table),  &(entry->elemH));
+    // printf("chaemata da %d\n", get_swap_idx(&(to_evict->pr->swap_table), to_evict->upage) == NULL);
     // TODO DIRTY BITS THING
     //    printf("inserting method\n");
 
     frame_free_page (to_evict->upage);
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
     palloc_free_page(to_evict->kpage);
-      //  printf("freeing method\n");
 
+      //  printf("freeing method\n");
+      
     uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
     ASSERT(frame_page != NULL);
+    struct frame* new = malloc(sizeof(struct frame));
+      new->pr = thread_current();
+      new->upage = upage;
+      new->kpage = frame_page;
+    list_push_back(&elems, &(new -> elemL));
+    hash_insert(&map, &(new -> elemH));
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
  //   printf("END OF FREE\n");
     return frame_page;
@@ -124,7 +131,7 @@ struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
     struct list_elem *tempL = list_pop_front(&elems);
     struct frame *temp = list_entry(tempL, struct frame, elemL);
-    while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
+    while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage) || temp->pr == thread_current()){
         list_push_back(&elems, &(temp->elemL));
         tempL = list_pop_front(&elems);
         temp = list_entry(tempL, struct frame, elemL);

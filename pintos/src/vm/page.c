@@ -41,8 +41,8 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
     page_table_entry* new = malloc(sizeof(page_table_entry));
     new->upage = upage;
     new->kpage = kpage;
-
     struct hash_elem* old = hash_insert(supplemental_page_table, new); 
+    // struct hash_elem* old = hash_insert(supplemental_page_table, &(new->elemH)); 
     
     /* already added */
     if(old) {

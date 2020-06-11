@@ -532,7 +532,7 @@ file_info_t* get_mmap__info(int mid, struct list *mmap_table){
   }
   return NULL;
 }
-
+#ifdef VM
 /**
  * Finds file info structure in its mmap list 
  * Returns file_info_t structure pointer.
@@ -601,3 +601,4 @@ void handle_munmap(mapid_t mapping) {
 
   lock_release(&file_lock);
 }
+#endif

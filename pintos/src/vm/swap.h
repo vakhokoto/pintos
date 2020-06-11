@@ -36,7 +36,7 @@ static int comp_func_swap_table (struct hash_elem *a, struct hash_elem *b, void 
     struct swap_table_entry *aelem = hash_entry(a, swap_table_entry, elemH);
     struct swap_table_entry *belem = hash_entry(b, swap_table_entry, elemH);
 
-    return aelem->idx > belem->idx;
+    return aelem->upage > belem->upage;
 }
 
 swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage);
