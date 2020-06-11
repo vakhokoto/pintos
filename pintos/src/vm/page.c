@@ -80,16 +80,13 @@ bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, 
 
 /* Mapps File offset into tha Supplemental Page Table - call from Syscall SYS_MMAP */
 void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info) {
-    size_t i = 0;
-    while(1) {
+    size_t i;
+    for(i = 0; i*PGSIZE <= mmap_info->file_info->size; i++) { // think about <=
         page_table_entry* pte = malloc(sizeof(page_table_entry));
         pte->upage = mmap_info->upage + i*PGSIZE;
         pte->file = mmap_info->file_info->file;
-
         struct hash_elem* old = hash_insert(supplemental_page_table, &(pte->elemH));
         ASSERT(old != NULL);
-        if(i*PGSIZE >= mmap_info->file_info->size) break;
-        i++;
     }
 }
 

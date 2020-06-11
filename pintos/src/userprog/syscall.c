@@ -133,7 +133,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_MMAP: {
       uint8_t* upage;
       read_argv(argv, &fd, sizeof(fd));
-      read_argv(argv, &upage, sizeof(upage));
+      read_argv(argv + sizeof(fd), &upage, sizeof(upage));
       f->eax = handle_mmap(fd, upage);
       break;
     }case SYS_MUNMAP: {
@@ -514,12 +514,12 @@ static bool put_user (uint8_t *udst, uint8_t byte){
   : "=&a" (error_code), "=m" (*udst) : "q" (byte));
   return error_code != -1;
 }
-
+#ifdef VM
 /**
  * Finds mmap info structure in its mmap list 
  * Returns mmap_info_t structure pointer.
  */ 
-file_info_t* get_mmap__info(int mid, struct list *mmap_table){
+file_info_t* get_mmap_info(int mid, struct list *mmap_table){
   /* if empty close automatically */
   if (list_empty(mmap_table)){
     return NULL;
@@ -532,7 +532,6 @@ file_info_t* get_mmap__info(int mid, struct list *mmap_table){
   }
   return NULL;
 }
-#ifdef VM
 /**
  * Finds file info structure in its mmap list 
  * Returns file_info_t structure pointer.
@@ -560,19 +559,20 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
     return -1;
 
   lock_acquire(&file_lock);
-  file_info_t* file_info = get_mmap_file_info(fd, &(thread_current()->mmap_table));
-
-  // may be file_reopen needed ?! idk...
+  file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
 
   /* check file - file exist - file opened - file size != 0 */
   if(file_info && file_info->file && file_info->size > 0) {
     /* Check if File can be mapped */
-    if(!supplemental_page_table_can_map_file(&(thread_current()->supp_table), upage, file_info))
+    if(!supplemental_page_table_can_map_file(&(thread_current()->supp_table), upage, file_info)) {
+      lock_release(&file_lock);
       return -1;
+    }
 
     mmap_info_t* mmap_info = malloc(sizeof(struct mmap_info_t));
     mmap_info->mid = list_size(&(thread_current()->mmap_table)) + 1;
     mmap_info->file_info = file_info;
+    mmap_info->file_info->file = file_reopen(file_info->file);
     mmap_info->upage = upage;
 
     supplemental_page_table_map_file(&(thread_current()->supp_table), mmap_info);
@@ -589,7 +589,7 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
 
 void handle_munmap(mapid_t mapping) {
   lock_acquire(&file_lock);
-  mmap_info_t* mmap_info = get_mmap__info(mapping, &(thread_current()->mmap_table));
+  mmap_info_t* mmap_info = get_mmap_info(mapping, &(thread_current()->mmap_table));
   
   if(mmap_info) {
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
