@@ -190,6 +190,15 @@ void destroy_children(struct thread* cur) {
   }
 }
 
+/* unmaps and deletes from cur->maap_table list*/
+void destroy_mmap_table(struct thread* cur) {
+  while (!list_empty (&(cur->mmap_table))){
+    struct list_elem *e = list_front(&(cur->mmap_table));
+    struct mmap_info_t* mmap_info = list_entry(e, struct mmap_info_t, elem);
+    handle_munmap(mmap_info->mid);
+  }
+}
+
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -257,6 +266,7 @@ void process_exit (void) {
       pagedir_activate (NULL);
       pagedir_destroy (pd);
       #ifdef VM
+      // destroy_mmap_table(thread_current());
       supplemental_page_table_destroy(&(thread_current()->supp_table));
       #endif
   }

@@ -126,7 +126,8 @@ bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, 
         // printf("file data read -> %d \n", tot);
         // printf("file data -> %p %s \n", pte->upage);
     }
-
+    mmap_info->upage_modify = malloc(mmap_info->file_info->size);
+    memcpy(mmap_info->upage_modify, mmap_info->upage, mmap_info->file_info->size);
     lock_release(&lock);
     return true;
 }
