@@ -596,6 +596,8 @@ void handle_munmap(mapid_t mapping) {
   mmap_info_t* mmap_info = get_mmap_info(mapping, &(thread_current()->mmap_table));
   
   if(mmap_info) {
+    mmap_info->file_info->file = file_reopen(mmap_info->file_info->file);
+    file_write(mmap_info->file_info->file, mmap_info->upage, mmap_info->file_info->size);
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
 
     // file_close(mmap_info->file_info->file);

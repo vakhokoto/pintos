@@ -186,13 +186,11 @@ void supplemental_page_table_unmap_file(struct hash* supplemental_page_table, mm
         ind = true;
         lock_acquire(&lock);
     }
-
     size_t i;
     for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) { // think about <=
         page_table_entry* pte = supplemental_page_table_lookup_page(&(thread_current()->supp_table), mmap_info->upage + i*PGSIZE);
         ASSERT(pte != NULL);
         pagedir_clear_page(thread_current() -> pagedir, mmap_info->upage + i*PGSIZE);
-
         // deleting from suppp page table
         hash_delete(supplemental_page_table, &(pte->elemH));
 
