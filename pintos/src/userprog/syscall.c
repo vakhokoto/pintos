@@ -10,12 +10,10 @@
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
 #include "lib/kernel/stdio.h"
-#ifdef VM
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "lib/string.h"
-#endif
 
 #define PIECE_SIZE 100
 
@@ -569,7 +567,8 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
   if(file_info && file_info->file && file_info->size > 0) {
     mmap_info_t* mmap_info = malloc(sizeof(struct mmap_info_t));
     mmap_info->mid = list_size(&(thread_current()->mmap_table)) + 1;
-    mmap_info->file_info = file_info;
+    mmap_info->file_info = malloc(sizeof(file_info_t));
+    memcpy(mmap_info -> file_info, file_info, sizeof(file_info_t));
     mmap_info->file_info->file = file_reopen(file_info->file);
     mmap_info->upage = upage;
     int size_to_set = (file_info -> size + PGSIZE - 1) / PGSIZE * PGSIZE;
@@ -597,6 +596,8 @@ void handle_munmap(mapid_t mapping) {
   mmap_info_t* mmap_info = get_mmap_info(mapping, &(thread_current()->mmap_table));
   
   if(mmap_info) {
+    mmap_info->file_info->file = file_reopen(mmap_info->file_info->file);
+    file_write(mmap_info->file_info->file, mmap_info->upage, mmap_info->file_info->size);
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
 
     // file_close(mmap_info->file_info->file);

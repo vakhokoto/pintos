@@ -7,6 +7,7 @@
 #include "threads/vaddr.h"
 #include "threads/thread.h"
 #include "lib/kernel/hash.h"
+#include "filesys/file.h"
 
 struct lock lock;
 
