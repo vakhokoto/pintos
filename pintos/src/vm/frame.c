@@ -53,16 +53,16 @@ void frame_init (size_t user_page_limit){
     list_init(&elems);
     lock_init(&flock);
     hash_init(&map, my_hash, comp_func_bytes, NULL);
-	printf("frame:\n\tframe inited\n");
+	// printf("frame:\n\tframe inited\n");
 }
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
-    printf("frame:\n\tpage creating to -> %d %p\n", flags, upage);
+    // printf("frame:\n\tpage creating to -> %d %p\n", flags, upage);
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
         addr = evict_frame(flags, upage);
-        printf("\tevicted -> %p\n", addr);
+        // printf("\tevicted -> %p\n", addr);
     } else {
         struct frame *fr = malloc(sizeof(struct frame));
 
@@ -73,18 +73,18 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         list_push_back(&elems, &(fr -> elemL));
         hash_insert(&map, &(fr -> elemH));  
         lock_release(&flock);
-        printf("\tnot evicted\n");
+        // printf("\tnot evicted\n");
     }
 
     supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
-    printf("\taddress associated -> %p\n", addr);
+    // printf("\taddress associated -> %p\n", addr);
     return addr;
 }
 
 /** Evicts */
 uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
   
-	printf("frame:\n\tevicting frame for -> %d %p\n", flags, upage);
+	// printf("frame:\n\tevicting frame for -> %d %p\n", flags, upage);
     struct frame* to_evict = pick_frame_to_evict();
 
     swap_idx_t idx = swap_add(to_evict->kpage);
@@ -106,7 +106,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
 	new->kpage = frame_page;
     list_push_back(&elems, &(new -> elemL));
     hash_insert(&map, &(new -> elemH));
-	printf("\tevicted address ker | user -> %p %p\n", to_evict -> kpage, to_evict -> upage);
+	// printf("\tevicted address ker | user -> %p %p\n", to_evict -> kpage, to_evict -> upage);
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
 
     return frame_page;
@@ -136,7 +136,7 @@ struct frame* pick_frame_to_evict(){
 void frame_free_page (void *upage){
    // NO synchronization necessary for 
 
-	printf("frame:\n\tfreeing page -> %p\n", upage);
+	// printf("frame:\n\tfreeing page -> %p\n", upage);
     struct frame temp_frame;
     temp_frame.upage = upage;
     temp_frame.kpage = NULL;
@@ -149,8 +149,8 @@ void frame_free_page (void *upage){
         list_remove(&felem -> elemL);
         hash_delete(&map, found_elem);
         palloc_free_page(felem -> kpage);
-		printf("\tfreeed\n");
+		// printf("\tfreeed\n");
     } else {
-		printf("\tno page to free\n");
+		// printf("\tno page to free\n");
 	}
 }

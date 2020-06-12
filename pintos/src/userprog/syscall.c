@@ -564,7 +564,7 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
   file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
   // void* noth = malloc(file_info->size);
   // size_t tot = file_read(file_info->file, noth, PGSIZE);
-  printf("File data read -> %d \n", file_info->size);
+  // printf("File data read -> %d \n", file_info->size);
   /* check file - file exist - file opened - file size != 0 */
   if(file_info && file_info->file && file_info->size > 0) {
     mmap_info_t* mmap_info = malloc(sizeof(struct mmap_info_t));
@@ -599,7 +599,7 @@ void handle_munmap(mapid_t mapping) {
   if(mmap_info) {
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
 
-    file_close(mmap_info->file_info->file);
+    // file_close(mmap_info->file_info->file);
     list_remove(&(mmap_info->elem));
     free(mmap_info);
   }
