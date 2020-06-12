@@ -73,6 +73,7 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         list_push_back(&elems, &(fr -> elemL));
         hash_insert(&map, &(fr -> elemH));  
         lock_release(&flock);
+        // pagedir_set_dirty(&(thread_current()->pagedir), upage, false);
         // printf("\tnot evicted\n");
     }
 
@@ -87,14 +88,21 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
 	// printf("frame:\n\tevicting frame for -> %d %p\n", flags, upage);
     struct frame* to_evict = pick_frame_to_evict();
 
-    swap_idx_t idx = swap_add(to_evict->kpage);
+    // swap_idx_t idx = swap_add(to_evict->kpage);
 
-    swap_table_entry* entry = malloc(sizeof(swap_table_entry));
-    entry->upage = to_evict->upage;
-    entry->idx = idx;
+    
 
-    hash_insert(&(to_evict->pr->swap_table),  &(entry->elemH));
-    // TODO DIRTY BITS THING
+    // hash_insert(&(to_evict->pr->swap_table),  &(entry->elemH));
+    // DIRTY BITS THING
+    bool is_dirty =  pagedir_is_dirty(to_evict->pr->pagedir, to_evict->upage);
+   if (is_dirty){
+        swap_idx_t idx = swap_add(to_evict->kpage);
+        swap_table_entry* entry = malloc(sizeof(swap_table_entry));
+        entry->upage = to_evict->upage;
+        entry->idx = idx;
+        hash_insert(&(to_evict->pr->swap_table),  &(entry->elemH));
+   }
+
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
     palloc_free_page(to_evict->kpage);
       
@@ -106,6 +114,9 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
 	new->kpage = frame_page;
     list_push_back(&elems, &(new -> elemL));
     hash_insert(&map, &(new -> elemH));
+
+    hash_delete(&map, &(to_evict->elemH));
+
 	// printf("\tevicted address ker | user -> %p %p\n", to_evict -> kpage, to_evict -> upage);
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
 
@@ -129,8 +140,7 @@ struct frame* pick_frame_to_evict(){
             pagedir_set_accessed(temp->pr->pagedir, temp->upage, false);
 		}
     }
-    hash_delete(&map, &(temp->elemH));
-    return temp;
+        return temp;
 }
 
 void frame_free_page (void *upage){
