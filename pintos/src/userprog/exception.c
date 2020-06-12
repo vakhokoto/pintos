@@ -164,7 +164,7 @@ page_fault (struct intr_frame *f)
   // debug_backtrace_all();
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
    // printf("%p, %p\n", fault_addr, fault_page);
-   //printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
+   // printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
    if (not_present && esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4 && fault_addr < PHYS_BASE) {
           if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
           //  printf("STACK GROW\n");
@@ -186,16 +186,15 @@ page_fault (struct intr_frame *f)
       swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
       // printf("ver poulobs %d\n", get_swap_idx(&(thread_current()->swap_table),fault_page) == -1);
       if(swap_idx != -1){
-       //  printf("ALREADY EVICTED \n");
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          swap_get(swap_idx, kpage);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+         pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
          swap_free(swap_idx);
          return;
          }
      } 
      // Stack grow
-  //   printf("AAAAA\n");
     
 //   }
   // Kernel
