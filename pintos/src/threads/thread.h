@@ -101,6 +101,7 @@ typedef struct mmap_info_t {
    struct file_info_t* file_info;
    uint8_t* upage;
    mapid_t mid;
+   bool is_written;
 } mmap_info_t;
 
 /* The `elem' member has a dual purpose.  It can be an element in

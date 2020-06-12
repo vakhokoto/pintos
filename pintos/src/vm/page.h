@@ -19,7 +19,6 @@ typedef struct page_table_entry {
     /* for files */
     struct file *file;
     size_t file_size; 
-    size_t offset;
 } page_table_entry;
 
 /* compares 2 frame elements */

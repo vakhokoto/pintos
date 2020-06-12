@@ -232,6 +232,9 @@ void destroy_file_descriptors(struct thread* cur) {
 void process_exit (void) {
   struct thread *cur = thread_current();
   printf("%s: exit(%d)\n", cur->name, cur->exit_status);
+  // if (cur->exit_status == -1){
+  //   printf("petaxa\n");
+  // }
 
   /* Destroy the current process's files */
   destroy_file_descriptors(cur);

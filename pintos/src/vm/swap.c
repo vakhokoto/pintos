@@ -32,6 +32,7 @@ void swap_init(){
     bcount = block_size(swap_block);
     map = bitmap_create(bcount);
     ASSERT(map != NULL);
+    // printf("swap:\n\tswap inited\n");
 }
 
 /* function to add page to ram and returns position
@@ -45,8 +46,11 @@ swap_idx_t swap_add(void *kpage){
         lock_acquire(&swap_access_lock);
     }
 
+    // printf("swap:\n\tadding to swap from -> %p\n", kpage);
+
     swap_idx_t idx = bitmap_scan(map, 0, SECTORS_PER_PAGE, false);
     if (idx == BITMAP_ERROR){
+        // printf("\terrored\n");
         lock_release(&swap_access_lock);
         return -1;
     }
@@ -59,6 +63,7 @@ swap_idx_t swap_add(void *kpage){
     }
     bitmap_set(map, idx, true);
     lock_release(&swap_access_lock);
+    // printf("\tadded on index -> %d\n", idx);
 
     return idx;
 }
@@ -66,6 +71,7 @@ swap_idx_t swap_add(void *kpage){
 /* function to get page with the index from swap */
 void swap_get(swap_idx_t idx, void* kpage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
+    // printf("swap:\n\tgetting info idx | kpage -> %d %p\n", idx, kpage);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     void* ktemp = kpage;
     if (!lock_held_by_current_thread(&swap_access_lock)){
@@ -84,6 +90,7 @@ void swap_get(swap_idx_t idx, void* kpage){
 /* function to free and remove page from swap */
 void swap_free(swap_idx_t idx){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
+    // printf("swap:\n\tfreeing ong idx -> %d\n", idx);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     
     if (!lock_held_by_current_thread(&swap_access_lock)){
@@ -96,6 +103,7 @@ void swap_free(swap_idx_t idx){
 }
 
 swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
+    // printf("swap:\n\tgetting index  swap_table | upage -> %p %p\n", swap_table, upage);
     if (!lock_held_by_current_thread(&swap_access_lock)){
         lock_acquire(&swap_access_lock);
     }
@@ -103,6 +111,7 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     swap_table_entry* ste = malloc(sizeof(swap_table_entry));
     if(ste == NULL){
         lock_release(&swap_access_lock);
+        // printf("\tno memory\n");
         return -1;
     } 
     ste->upage = upage;
@@ -110,6 +119,7 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     struct swap_table_entry* find;
     struct hash_elem* elem = hash_find(swap_table, &(ste->elemH));
     if(elem) find = hash_entry(elem, struct swap_table_entry, elemH);
+    // printf("\tfound -> %p\n", elem);
     lock_release(&swap_access_lock);
     return elem ? find->idx : -1;
 }

@@ -153,6 +153,7 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   #ifdef VM
+//   printf("fualt -> %p\n", fault_addr);
    uint8_t* esp;
    if (user){
       esp = f->esp;
@@ -160,54 +161,40 @@ page_fault (struct intr_frame *f)
       esp = thread_current()->saved_esp;
    }
 
-
-  // debug_backtrace_all();
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
    // printf("%p, %p\n", fault_addr, fault_page);
-   //printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
+   // printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
    if (not_present && esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4 && fault_addr < PHYS_BASE) {
-          if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
-          //  printf("STACK GROW\n");
-            uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-            pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
-          } else {
-            supplemental_page_table_set_frame(&(thread_current()->supp_table), fault_page, NULL);
-          }
-       
-         return;
-      //  }
-   } 
+      if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
+         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+         pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+      } else {
+         supplemental_page_table_set_frame(&(thread_current()->supp_table), fault_page, NULL);
+      }
+   
+      return;
+   }
 
-   // User mode (evicted pace)
-//   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f->cs){
-   //   if(user && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
-     if(not_present && is_user_vaddr(fault_addr) && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
-   //   printf("SUPP IFF\n");
+   if (not_present && is_user_vaddr(fault_addr) && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
       swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
-      // printf("ver poulobs %d\n", get_swap_idx(&(thread_current()->swap_table),fault_page) == -1);
       if(swap_idx != -1){
-       //  printf("ALREADY EVICTED \n");
+         // printf("ALREADY EVICTED \n");
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          swap_get(swap_idx, kpage);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
          swap_free(swap_idx);
          return;
-         }
-     } 
-     // Stack grow
-  //   printf("AAAAA\n");
+      }
+   } 
     
-//   }
   // Kernel
   if(!user) {
-    // printf("KKK IFF\n");
     f->eip = f->eax;
     f->eax = -1;
     return;
   }
   #endif
 
-//   printf("dwdawdwa IFF\n");
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

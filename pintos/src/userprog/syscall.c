@@ -10,11 +10,10 @@
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
 #include "lib/kernel/stdio.h"
-#ifdef VM
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
-#endif
+#include "lib/string.h"
 
 #define PIECE_SIZE 100
 
@@ -514,7 +513,7 @@ static bool put_user (uint8_t *udst, uint8_t byte){
   : "=&a" (error_code), "=m" (*udst) : "q" (byte));
   return error_code != -1;
 }
-#ifdef VM
+
 /**
  * Finds mmap info structure in its mmap list 
  * Returns mmap_info_t structure pointer.
@@ -574,6 +573,8 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
     mmap_info->file_info = file_info;
     mmap_info->file_info->file = file_reopen(file_info->file);
     mmap_info->upage = upage;
+    int size_to_set = (file_info -> size + PGSIZE - 1) / PGSIZE * PGSIZE;
+    memset(mmap_info ->upage, 0, size_to_set);
 
     supplemental_page_table_map_file(&(thread_current()->supp_table), mmap_info);
 
@@ -601,4 +602,3 @@ void handle_munmap(mapid_t mapping) {
 
   lock_release(&file_lock);
 }
-#endif
