@@ -398,11 +398,7 @@ thread_current (void)
     // }
     debug_backtrace();
   }
-  if (!is_thread (t)){
-    int pppppp;
-
-    printf("metodi\n");
-  }
+  if(!is_thread(t)) printf("arasworia\n");
   ASSERT (is_thread (t));
   ASSERT (t->status == THREAD_RUNNING);
 

@@ -39,7 +39,7 @@ int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
     struct frame *aelem = hash_entry(a, struct frame, elemH);
     struct frame *belem = hash_entry(b, struct frame, elemH);
 
-    return !(aelem -> upage == belem -> upage && aelem ->pr -> pagedir == belem -> pr -> pagedir);
+    return aelem -> kpage > belem -> kpage;
 }
 
 /* wrapper hash function to hash using upage value */
@@ -71,7 +71,7 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         fr -> pr = thread_current();
         lock_acquire(&flock);
         list_push_back(&elems, &(fr -> elemL));
-        hash_insert(&map, &(fr -> elemH));   
+        hash_insert(&map, &(fr -> elemH));  
         lock_release(&flock);
         // printf("\tnot evicted\n");
     }
@@ -129,6 +129,7 @@ struct frame* pick_frame_to_evict(){
             pagedir_set_accessed(temp->pr->pagedir, temp->upage, false);
 		}
     }
+    hash_delete(&map, &(temp->elemH));
     return temp;
 }
 

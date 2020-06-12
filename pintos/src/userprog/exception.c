@@ -182,6 +182,7 @@ page_fault (struct intr_frame *f)
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          swap_get(swap_idx, kpage);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+         pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
          swap_free(swap_idx);
          return;
       }
