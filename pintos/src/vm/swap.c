@@ -103,7 +103,7 @@ void swap_free(swap_idx_t idx){
 }
 
 swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
-    // printf("swap:\n\tgetting index  swap_table | upage -> %p %p\n", swap_table, upage);
+    printf("swap:\n\tgetting index  swap_table | upage -> %p %p\n", swap_table, upage);
     if (!lock_held_by_current_thread(&swap_access_lock)){
         lock_acquire(&swap_access_lock);
     }
@@ -111,7 +111,7 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     swap_table_entry* ste = malloc(sizeof(swap_table_entry));
     if(ste == NULL){
         lock_release(&swap_access_lock);
-        // printf("\tno memory\n");
+        printf("\tno memory\n");
         return -1;
     } 
     ste->upage = upage;
@@ -119,7 +119,7 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     struct swap_table_entry* find;
     struct hash_elem* elem = hash_find(swap_table, &(ste->elemH));
     if(elem) find = hash_entry(elem, struct swap_table_entry, elemH);
-    // printf("\tfound -> %p\n", elem);
+    printf("\tfound -> %p\n", elem);
     lock_release(&swap_access_lock);
     return elem ? find->idx : -1;
 }

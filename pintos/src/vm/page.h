@@ -16,9 +16,6 @@ typedef struct page_table_entry {
     uint8_t* upage;
     uint8_t* kpage;
 
-    /* for files */
-    struct file *file;
-    size_t file_size; 
 } page_table_entry;
 
 /* compares 2 frame elements */
@@ -45,5 +42,6 @@ void page_table_entry_destroy(page_table_entry* pte);
 bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, uint8_t* upage, file_info_t* file_info);
 void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info);
 void supplemental_page_table_unmap_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info);
+bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info);
 
 #endif

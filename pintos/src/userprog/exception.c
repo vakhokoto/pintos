@@ -160,11 +160,15 @@ page_fault (struct intr_frame *f)
    } else {
       esp = thread_current()->saved_esp;
    }
-
+   printf("who faulted %p %d \n", fault_addr, is_user_vaddr(fault_addr));
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
+   printf("who faulted2 %p %d \n", fault_addr, is_user_vaddr(fault_addr));
+
    // printf("%p, %p\n", fault_addr, fault_page);
    // printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
-   if (not_present && esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4 && fault_addr < PHYS_BASE) {
+   printf("boollllllllllllllll %d %d %d %d %d \n", not_present, esp <= fault_addr , fault_addr == f->esp - 32 , fault_addr == f->esp - 4 , fault_addr < PHYS_BASE);
+   if (not_present && (esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4) && fault_addr < PHYS_BASE) {
+      printf("PAGDIT SETTT \n");
       if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
@@ -177,18 +181,23 @@ page_fault (struct intr_frame *f)
 
    if (not_present && is_user_vaddr(fault_addr) && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
       swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
+      printf("swap IDX %d \n", swap_idx);
       if(swap_idx != -1){
-         // printf("ALREADY EVICTED \n");
+         printf("ALREADY EVICTED \n");
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
          swap_get(swap_idx, kpage);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
          pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
          swap_free(swap_idx);
          return;
+      } else {
+         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+         pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+         return;
       }
    } 
     
-  // Kernel
+//   Kernel
   if(!user) {
     f->eip = f->eax;
     f->eax = -1;

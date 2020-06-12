@@ -10,10 +10,12 @@
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
 #include "lib/kernel/stdio.h"
+#ifdef VM
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "lib/string.h"
+#endif
 
 #define PIECE_SIZE 100
 
@@ -531,6 +533,7 @@ file_info_t* get_mmap_info(int mid, struct list *mmap_table){
   }
   return NULL;
 }
+// #ifdef VM
 /**
  * Finds file info structure in its mmap list 
  * Returns file_info_t structure pointer.
@@ -559,24 +562,25 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
 
   lock_acquire(&file_lock);
   file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
-
+  // void* noth = malloc(file_info->size);
+  // size_t tot = file_read(file_info->file, noth, PGSIZE);
+  printf("File data read -> %d \n", file_info->size);
   /* check file - file exist - file opened - file size != 0 */
   if(file_info && file_info->file && file_info->size > 0) {
-    /* Check if File can be mapped */
-    if(!supplemental_page_table_can_map_file(&(thread_current()->supp_table), upage, file_info)) {
-      lock_release(&file_lock);
-      return -1;
-    }
-
     mmap_info_t* mmap_info = malloc(sizeof(struct mmap_info_t));
     mmap_info->mid = list_size(&(thread_current()->mmap_table)) + 1;
     mmap_info->file_info = file_info;
     mmap_info->file_info->file = file_reopen(file_info->file);
     mmap_info->upage = upage;
     int size_to_set = (file_info -> size + PGSIZE - 1) / PGSIZE * PGSIZE;
-    memset(mmap_info ->upage, 0, size_to_set);
+    
+    /* Check if File can be mapped */
+    if(!supplemental_page_table_try_map_file(&(thread_current()->supp_table), mmap_info)) {
+      free(mmap_info);
+      lock_release(&file_lock);
+      return -1;
+    }
 
-    supplemental_page_table_map_file(&(thread_current()->supp_table), mmap_info);
 
     list_push_back(&(thread_current()->mmap_table), &(mmap_info->elem));
 
@@ -602,3 +606,4 @@ void handle_munmap(mapid_t mapping) {
 
   lock_release(&file_lock);
 }
+// #endif

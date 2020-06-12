@@ -34,6 +34,7 @@ struct page_table_entry* supplemental_page_table_lookup_page(struct hash* supple
     struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
     if(elem != NULL) find = hash_entry(elem, struct page_table_entry, elemH);
     
+    free(pte);
     if (ind)
         lock_release(&lock);
     return find;
@@ -86,6 +87,49 @@ void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, 
         lock_release(&lock);
 }
 
+void debug(struct hash_elem* he) {
+    page_table_entry* pte = hash_entry(he, struct page_table_entry, elemH);
+    printf("hash elem -> upage %p, kpage %p \n", pte->upage, pte->kpage);
+}
+
+bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, mmap_info_t* mmap_info) {
+    lock_acquire(&lock);
+
+    size_t i;
+    for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) {
+        page_table_entry* pte = malloc(sizeof(page_table_entry));
+        pte->upage = mmap_info->upage + i*PGSIZE;
+
+        struct page_table_entry* find = NULL;
+        struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
+        if(elem != NULL) find = hash_entry(elem, struct page_table_entry, elemH);
+        free(pte);
+
+        if(find || !is_user_vaddr(mmap_info->upage + i*PGSIZE)){
+            lock_release(&lock);
+            return false;
+        }
+    }
+    
+    for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) {
+        page_table_entry* pte = malloc(sizeof(page_table_entry));
+        pte->upage = mmap_info->upage + i*PGSIZE;
+        pte->kpage = NULL;
+        supplemental_page_table_set_frame(&(thread_current()->supp_table), pte->upage, pte->kpage);
+        // printf("map upage -> %p kpage -> %p valid -> %d - %d \n ", pte->upage, pte->kpage, is_user_vaddr(pte->upage), is_kernel_vaddr(pte->kpage));
+
+        memset(pte->upage, 0, PGSIZE);
+        // printf("map upage -> %p kpage -> %p valid -> %d - %d \n ", pte->upage, pte->kpage, is_user_vaddr(pte->upage), is_kernel_vaddr(pte->kpage));
+
+        size_t tot = file_read(mmap_info->file_info->file, pte->upage, PGSIZE);
+        // printf("file data read -> %d \n", tot);
+        // printf("file data -> %p %s \n", pte->upage);
+    }
+
+    lock_release(&lock);
+    return true;
+}
+
 /* Mapps File offset into tha Supplemental Page Table - call from Syscall SYS_MMAP */
 bool supplemental_page_table_can_map_file(struct hash* supplemental_page_table, uint8_t* upage, file_info_t* file_info) {
     bool ind  = false;
@@ -123,12 +167,10 @@ void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap
     for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) { // think about <=
         page_table_entry* pte = malloc(sizeof(page_table_entry));
         pte->upage = mmap_info->upage + i*PGSIZE;
-        pte->file = mmap_info->file_info->file;
+        pte->kpage = frame_get_page(PAL_USER, pte->upage);
+        // memset(pte->kpage, 0, PGSIZE);
+        // file_read(mmap_info->file_info->file, pte->kpage, PGSIZE);
         struct hash_elem* old = hash_insert(supplemental_page_table, &(pte->elemH));
-        if (old){
-            page_table_entry* oldH = hash_entry(old,  struct page_table_entry, elemH);
-           // printf("OLDONE %d %d\n NEWONE %d %d", oldH->kpage, oldH->upage, pte->kpage, pte->upage);
-        }
         ASSERT(old == NULL);
     }
 
