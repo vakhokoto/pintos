@@ -99,6 +99,7 @@ typedef int mapid_t;
 typedef struct mmap_info_t {
    struct list_elem elem;
    struct file_info_t* file_info;
+   uint8_t* upage_modify;
    uint8_t* upage;
    mapid_t mid;
    bool is_written;

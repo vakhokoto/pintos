@@ -53,7 +53,6 @@ bool supplemental_page_table_set_frame(struct hash* supplemental_page_table, uin
     page_table_entry* new = malloc(sizeof(page_table_entry));
     new->upage = upage;
     new->kpage = kpage;
-    // struct hash_elem* old = hash_insert(supplemental_page_table, new); 
     struct hash_elem* old = hash_insert(supplemental_page_table, &(new->elemH)); 
     
     /* already added */
@@ -117,16 +116,13 @@ bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, 
         pte->upage = mmap_info->upage + i*PGSIZE;
         pte->kpage = NULL;
         supplemental_page_table_set_frame(&(thread_current()->supp_table), pte->upage, pte->kpage);
-        // printf("map upage -> %p kpage -> %p valid -> %d - %d \n ", pte->upage, pte->kpage, is_user_vaddr(pte->upage), is_kernel_vaddr(pte->kpage));
 
         memset(pte->upage, 0, PGSIZE);
-        // printf("map upage -> %p kpage -> %p valid -> %d - %d \n ", pte->upage, pte->kpage, is_user_vaddr(pte->upage), is_kernel_vaddr(pte->kpage));
 
         size_t tot = file_read(mmap_info->file_info->file, pte->upage, PGSIZE);
-        // printf("file data read -> %d \n", tot);
-        // printf("file data -> %p %s \n", pte->upage);
     }
-
+    mmap_info->upage_modify = malloc(mmap_info->file_info->size);
+    memcpy(mmap_info->upage_modify, mmap_info->upage, mmap_info->file_info->size);
     lock_release(&lock);
     return true;
 }
@@ -169,8 +165,6 @@ void supplemental_page_table_map_file(struct hash* supplemental_page_table, mmap
         page_table_entry* pte = malloc(sizeof(page_table_entry));
         pte->upage = mmap_info->upage + i*PGSIZE;
         pte->kpage = frame_get_page(PAL_USER, pte->upage);
-        // memset(pte->kpage, 0, PGSIZE);
-        // file_read(mmap_info->file_info->file, pte->kpage, PGSIZE);
         struct hash_elem* old = hash_insert(supplemental_page_table, &(pte->elemH));
         ASSERT(old == NULL);
     }
@@ -191,6 +185,7 @@ void supplemental_page_table_unmap_file(struct hash* supplemental_page_table, mm
         page_table_entry* pte = supplemental_page_table_lookup_page(&(thread_current()->supp_table), mmap_info->upage + i*PGSIZE);
         ASSERT(pte != NULL);
         pagedir_clear_page(thread_current() -> pagedir, mmap_info->upage + i*PGSIZE);
+
         // deleting from suppp page table
         hash_delete(supplemental_page_table, &(pte->elemH));
 
