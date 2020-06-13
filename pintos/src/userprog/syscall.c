@@ -459,7 +459,6 @@ bool buffer_available(void* buffer, unsigned size){
 
   for (address = buffer; address < (char*) buffer + size; address += PGSIZE){
     if (pagedir_get_page(cur_thread->pagedir, address) == NULL){
-      // printf("pirveli pagedir\n");
       result = false;
     }
   }
@@ -470,7 +469,6 @@ bool buffer_available(void* buffer, unsigned size){
       #ifdef VM
       uint8_t* fault_page = (uint8_t*)pg_round_down((char*)buffer + size - 1);
       uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-     // printf("buffer sett %d %d\n", fault_page, kpage);
       pagedir_set_page(cur_thread->pagedir, fault_page, kpage, true);
       #else
       result = false;
@@ -597,8 +595,8 @@ void handle_munmap(mapid_t mapping) {
   
   if(mmap_info) {
     mmap_info->file_info->file = file_reopen(mmap_info->file_info->file);
-    // if(memcmp(mmap_info->upage, mmap_info->upage_modify, mmap_info->file_info->size)) 
-      // file_write(mmap_info->file_info->file, mmap_info->upage, mmap_info->file_info->size);
+    if(memcmp(mmap_info->upage, mmap_info->upage_modify, mmap_info->file_info->size)) 
+      file_write(mmap_info->file_info->file, mmap_info->upage, mmap_info->file_info->size);
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
 
     // file_close(mmap_info->file_info->file);

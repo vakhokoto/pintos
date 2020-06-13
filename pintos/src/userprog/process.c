@@ -48,6 +48,7 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
     char* token = strtok_r(line, " ", &tok_ptr);
     // set file name
     memcpy(pe_info->file_name, token, strlen(token) + 1);
+    
     // set arguments
     pe_info->tot_len = 0;
     pe_info->load_success = 0;
@@ -190,7 +191,7 @@ void destroy_children(struct thread* cur) {
   }
 }
 
-/* unmaps and deletes from cur->maap_table list*/
+/* unmaps and deletes from cur->mmap_table list*/
 void destroy_mmap_table(struct thread* cur) {
   while (!list_empty (&(cur->mmap_table))){
     struct list_elem *e = list_front(&(cur->mmap_table));
@@ -241,9 +242,6 @@ void destroy_file_descriptors(struct thread* cur) {
 void process_exit (void) {
   struct thread *cur = thread_current();
   printf("%s: exit(%d)\n", cur->name, cur->exit_status);
-  // if (cur->exit_status == -1){
-  //   printf("petaxa\n");
-  // }
 
   /* Destroy the current process's files */
   destroy_file_descriptors(cur);
@@ -563,7 +561,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
-//  printf("LOADING\n");
   while (read_bytes > 0 || zero_bytes > 0)
     {
       /* Calculate how to fill this page.
@@ -598,7 +595,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable))
         {
-          // SHEVCVALET
           #ifdef VM
           frame_free_page(upage);
           #else
@@ -629,8 +625,6 @@ setup_stack (void **esp, process_execute_info* pe_info)
   #else
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   #endif
-  // SHEVCVALET UNDA IFDEF
-  //printf("------SETUPPING STACK\n");
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -676,7 +670,6 @@ setup_stack (void **esp, process_execute_info* pe_info)
         #else
         palloc_free_page (kpage);
         #endif
-        // SHEVCVALET
       }
         
     }
