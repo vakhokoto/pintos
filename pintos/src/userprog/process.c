@@ -597,7 +597,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       if (!install_page (upage, kpage, writable))
         {
           #ifdef VM
-          frame_free_page(upage);
+          frame_free_page(kpage);
           #else
           palloc_free_page (kpage);
           #endif
@@ -667,7 +667,7 @@ setup_stack (void **esp, process_execute_info* pe_info)
         *((int*) *esp) = 0;
       } else{
         #ifdef VM
-        frame_free_page(((uint8_t *) PHYS_BASE) - PGSIZE);
+        frame_free_page(kpage);
         #else
         palloc_free_page (kpage);
         #endif

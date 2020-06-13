@@ -73,11 +73,11 @@ void supplemental_page_table_clear_frame (struct hash* supplemental_page_table, 
         lock_acquire(&lock);
     }
     
-    page_table_entry* pte = malloc(sizeof(page_table_entry));
-    pte->upage = upage;
+    page_table_entry pte;
+    pte.upage = upage;
 
     struct page_table_entry* find;
-    struct hash_elem* elem = hash_find(supplemental_page_table, &(pte->elemH));
+    struct hash_elem* elem = hash_find(supplemental_page_table, &(pte.elemH));
     if(elem != NULL) {
         find = hash_entry(elem, struct page_table_entry, elemH);
         hash_delete(supplemental_page_table, &(find->elemH));
