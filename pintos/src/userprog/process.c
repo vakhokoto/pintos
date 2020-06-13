@@ -48,7 +48,7 @@ void initialize_process_execute_info(process_execute_info* pe_info, char* line) 
     char* token = strtok_r(line, " ", &tok_ptr);
     // set file name
     memcpy(pe_info->file_name, token, strlen(token) + 1);
-    
+
     // set arguments
     pe_info->tot_len = 0;
     pe_info->load_success = 0;
@@ -253,6 +253,10 @@ void process_exit (void) {
      to the kernel-only page directory. */
   uint32_t *pd = cur->pagedir;
   if (pd != NULL) {
+    #ifdef VM
+    destroy_mmap_table(thread_current());
+    supplemental_page_table_destroy(&(thread_current()->supp_table));
+    #endif
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
          so that a timer interrupt can't switch back to the
@@ -263,10 +267,7 @@ void process_exit (void) {
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-      #ifdef VM
-      // destroy_mmap_table(thread_current());
-      supplemental_page_table_destroy(&(thread_current()->supp_table));
-      #endif
+
   }
 
   /* update child's struct */
