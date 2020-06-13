@@ -23,6 +23,7 @@ struct frame {
     struct thread *pr;
     struct list_elem elemL;
     struct hash_elem elemH;
+    bool pinned;
 };
 
 static struct list elems;  // frame list
@@ -46,7 +47,7 @@ int comp_func_bytes(struct hash_elem *a, struct hash_elem *b, void *aux){
 unsigned my_hash (const void *elem, size_t size){
     struct frame *real_elem = hash_entry((struct hash_elem*)elem, struct frame, elemH);
 
-    return hash_bytes(real_elem -> upage, size);
+    return hash_bytes(real_elem -> kpage, size);
 }
 
 void frame_init (size_t user_page_limit){
@@ -58,6 +59,11 @@ void frame_init (size_t user_page_limit){
 
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     // printf("frame:\n\tpage creating to -> %d %p\n", flags, upage);
+    bool ind  = false;
+    if (!lock_held_by_current_thread(&flock)){
+        ind = true;
+        lock_acquire(&flock);
+    }
 
     uint8_t* addr = palloc_get_page(flags);
     if(addr == NULL){
@@ -69,16 +75,17 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         fr -> kpage = addr;
         fr -> upage = upage;
         fr -> pr = thread_current();
-        lock_acquire(&flock);
+        fr -> pinned = false;
         list_push_back(&elems, &(fr -> elemL));
         hash_insert(&map, &(fr -> elemH));  
-        lock_release(&flock);
         // pagedir_set_dirty(&(thread_current()->pagedir), upage, false);
         // printf("\tnot evicted\n");
     }
 
     supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
     // printf("\taddress associated -> %p\n", addr);
+    if (ind)
+        lock_release(&flock);
     return addr;
 }
 
@@ -95,18 +102,21 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     // hash_insert(&(to_evict->pr->swap_table),  &(entry->elemH));
     // DIRTY BITS THING
     bool is_dirty =  pagedir_is_dirty(to_evict->pr->pagedir, to_evict->upage);
-   if (is_dirty){
+   //if (is_dirty){
+      // printf("DIRTY\n");supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL
         swap_idx_t idx = swap_add(to_evict->kpage);
         swap_table_entry* entry = malloc(sizeof(swap_table_entry));
         entry->upage = to_evict->upage;
         entry->idx = idx;
         hash_insert(&(to_evict->pr->swap_table),  &(entry->elemH));
-   }
+   //}
 
     pagedir_clear_page(to_evict->pr->pagedir, to_evict->upage);
-    palloc_free_page(to_evict->kpage);
+    // supplemental_page_table_clear_frame(&(to_evict->pr->supp_table), to_evict->upage);
+    // frame_free_page(to_evict->kpage);
       
-    uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
+    // uint8_t* frame_page = (uint8_t*)palloc_get_page(flags);
+    uint8_t* frame_page = to_evict->kpage;
     ASSERT(frame_page != NULL);
     struct frame* new = malloc(sizeof(struct frame));
 	new->pr = thread_current();
@@ -115,7 +125,6 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     list_push_back(&elems, &(new -> elemL));
     hash_insert(&map, &(new -> elemH));
 
-    hash_delete(&map, &(to_evict->elemH));
 
 	// printf("\tevicted address ker | user -> %p %p\n", to_evict -> kpage, to_evict -> upage);
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
@@ -129,27 +138,44 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
 */
 struct frame* pick_frame_to_evict(){
     // FIFO ALGORITHM NEEDS TO CHANGE
-    struct list_elem *tempL = list_pop_front(&elems);
+    struct list_elem *tempL = list_front(&elems);
 
     struct frame *temp = list_entry(tempL, struct frame, elemL);
-    while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
-        list_push_back(&elems, &(temp->elemL));
-        tempL = list_pop_front(&elems);
+
+    while(pagedir_is_accessed(temp->pr->pagedir, temp->upage)){// || temp->pinned){
+        tempL = list_next(&elems);
         temp = list_entry(tempL, struct frame, elemL);
         if (pagedir_is_accessed(temp->pr->pagedir, temp->upage)) {
             pagedir_set_accessed(temp->pr->pagedir, temp->upage, false);
 		}
     }
-        return temp;
+    list_remove(tempL);
+    hash_delete(&map, &(temp->elemH));
+
+    //  while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
+    //     list_push_back(&elems, &(temp->elemL));
+    //     tempL = list_pop_front(&elems);
+    //     temp = list_entry(tempL, struct frame, elemL);
+    //     if (pagedir_is_accessed(temp->pr->pagedir, temp->upage)) {
+    //         pagedir_set_accessed(temp->pr->pagedir, temp->upage, false);
+	// 	}
+    // }
+
+
+    return temp;
 }
 
-void frame_free_page (void *upage){
+void frame_free_page (void *kpage){
    // NO synchronization necessary for 
+   bool ind  = false;
+    if (!lock_held_by_current_thread(&flock)){
+        ind = true;
+        lock_acquire(&flock);
+    }
 
 	// printf("frame:\n\tfreeing page -> %p\n", upage);
     struct frame temp_frame;
-    temp_frame.upage = upage;
-    temp_frame.kpage = NULL;
+    temp_frame.kpage = kpage;
 
     struct hash_elem *found_elem = hash_find(&map, &temp_frame.elemH);
     
@@ -163,4 +189,17 @@ void frame_free_page (void *upage){
     } else {
 		// printf("\tno page to free\n");
 	}
+    if (ind)
+        lock_release(&flock);
+}
+
+struct frame* get_frame(void* kpage){
+    struct frame temp_frame;
+    temp_frame.kpage = kpage;
+    struct hash_elem *found_elem = hash_find(&map, &temp_frame.elemH);
+    if (found_elem != NULL){
+        struct frame *felem = hash_entry(found_elem, struct frame, elemH);
+        return felem;
+    }
+    return NULL;
 }
