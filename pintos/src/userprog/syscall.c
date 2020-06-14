@@ -307,8 +307,12 @@ int handle_write(int fd, const void *buffer, unsigned size) {
       return false;
     }
 
+    set_pinned(buffer, size, true);
+
     /* writing into file */
     written_bytes = file_write(output_file -> file, buffer, size);
+
+    set_pinned(buffer, size, false);
   }
 
   lock_release(&file_lock);
@@ -350,7 +354,11 @@ int handle_read(int fd, void* buffer, unsigned size) {
       return -1;
     }
 
+    set_pinned(buffer, size, true);
+
     bytes_read = file_read(file_info -> file, buffer, size);
+
+    set_pinned(buffer, size, false);
   }
   lock_release(&file_lock);
   return bytes_read;
@@ -595,8 +603,15 @@ void handle_munmap(mapid_t mapping) {
   
   if(mmap_info) {
     mmap_info->file_info->file = file_reopen(mmap_info->file_info->file);
-    if(memcmp(mmap_info->upage, mmap_info->upage_modify, mmap_info->file_info->size)) 
+
+    if(memcmp(mmap_info->upage, mmap_info->upage_modify, mmap_info->file_info->size)) {
+      set_pinned(mmap_info->upage, mmap_info->file_info->size, true);
+
       file_write(mmap_info->file_info->file, mmap_info->upage, mmap_info->file_info->size);
+
+      set_pinned(mmap_info->upage, mmap_info->file_info->size, false);
+    }
+
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
 
     // file_close(mmap_info->file_info->file);
