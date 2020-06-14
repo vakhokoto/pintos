@@ -70,7 +70,6 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         fr -> pinned = false;
         // printf("\tnot evicted\n");
     }
-
     // printf("\taddress associated -> %p\n", addr);
     lock_release(&flock);
     return addr;
@@ -105,7 +104,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     hash_insert(&map, &(new -> elemH));
     supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, frame_page);
     new -> pinned = false;
-
+    free(to_evict);
 	// printf("\tevicted address ker | user -> %p %p\n", to_evict -> kpage, to_evict -> upage);
 
     return frame_page;
@@ -165,6 +164,8 @@ void set_pinned(void *ptr, size_t size, bool pin_value){
             if (temp_fr != NULL){
                 temp_fr -> pinned = pin_value;
             }
+        } else {
+            supplemental_page_table_set_frame(&(thread_current()->supp_table), begin, NULL);
         }
     }
 
@@ -201,4 +202,15 @@ struct frame* get_frame(void* kpage){
         return felem;
     }
     return NULL;
+}
+
+void delete_thread_frames(struct thread* t){
+    lock_acquire(&flock);
+    struct list_elem *e;
+    for (e = list_begin (&elems); e != list_end (&elems); e = list_next (e)){
+        if(list_entry(e, struct frame, elemL)->pr == t){
+            list_remove(e);
+        }
+    }
+    lock_release(&flock);
 }

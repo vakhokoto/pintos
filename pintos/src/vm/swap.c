@@ -48,8 +48,6 @@ swap_idx_t swap_add(void *kpage){
 
     swap_idx_t idx = bitmap_scan(map, 0, SECTORS_PER_PAGE, false);
 
-    ASSERT (idx != BITMAP_ERROR);
-
     if (idx == BITMAP_ERROR){
         // printf("\terrored\n");
         lock_release(&swap_access_lock);
