@@ -14,16 +14,11 @@
 #include "lib/kernel/hash.h"
 #include "vm/swap.h"
 #include "vm/page.h"
+#include "vm/frame.h"
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 
-struct frame {
-    uint8_t *upage;
-    uint8_t *kpage;
-    struct thread *pr;
-    struct list_elem elemL;
-    struct hash_elem elemH;
-};
+
 
 static struct list elems;  // frame list
 static struct lock flock;
@@ -56,6 +51,17 @@ void frame_init (size_t user_page_limit){
 	// printf("frame:\n\tframe inited\n");
 }
 
+struct frame* get_frame(uint8_t* upage){
+    struct list_elem *e;
+    for (e = list_begin (&elems); e != list_end (&elems); e = list_next (e)) {
+        struct frame *fr = list_entry(e, struct frame, elemL);
+        if(fr->upage == pg_round_down(upage)) {
+            return fr;
+        }
+    }
+    return NULL;
+}
+
 uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
     // printf("frame:\n\tpage creating to -> %d %p\n", flags, upage);
 
@@ -69,15 +75,13 @@ uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage){
         fr -> kpage = addr;
         fr -> upage = upage;
         fr -> pr = thread_current();
-        lock_acquire(&flock);
+        fr -> pinned = true;
         list_push_back(&elems, &(fr -> elemL));
-        hash_insert(&map, &(fr -> elemH));  
-        lock_release(&flock);
-        // printf("\tnot evicted\n");
+        hash_insert(&map, &(fr -> elemH));
+        supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
+        fr -> pinned = false;  
     }
-
-    supplemental_page_table_set_frame(&(thread_current()->supp_table), upage, addr);
-    // printf("\taddress associated -> %p\n", addr);
+    
     return addr;
 }
 
@@ -104,8 +108,11 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
 	new->pr = thread_current();
 	new->upage = upage;
 	new->kpage = frame_page;
+    new->pinned = true;
     list_push_back(&elems, &(new -> elemL));
     hash_insert(&map, &(new -> elemH));
+    supplemental_page_table_set_frame(&(thread_current()->supp_table), new->upage, new->kpage);
+    new->pinned = false;
 	// printf("\tevicted address ker | user -> %p %p\n", to_evict -> kpage, to_evict -> upage);
  //   pagedir_set_page(thread_current()->pagedir, upage, frame_page, true);
 
@@ -121,7 +128,7 @@ struct frame* pick_frame_to_evict(){
     struct list_elem *tempL = list_pop_front(&elems);
 
     struct frame *temp = list_entry(tempL, struct frame, elemL);
-    while(pagedir_is_dirty(temp->pr->pagedir, temp->upage) || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
+    while(temp->pinned || pagedir_is_accessed(temp->pr->pagedir, temp->upage)){
         list_push_back(&elems, &(temp->elemL));
         tempL = list_pop_front(&elems);
         temp = list_entry(tempL, struct frame, elemL);

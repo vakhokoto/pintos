@@ -5,8 +5,19 @@
 #include "lib/stdint.h"
 #include "threads/palloc.h"
 
+struct frame {
+    uint8_t *upage;
+    uint8_t *kpage;
+    bool pinned;
+    struct thread *pr;
+    struct list_elem elemL;
+    struct hash_elem elemH;
+};
+
+struct frame* get_frame(uint8_t* upage);
+
 void frame_init (size_t user_page_limit);
-void *frame_get_page(enum palloc_flags flags, uint8_t *upage);
+uint8_t *frame_get_page(enum palloc_flags flags, uint8_t* upage);
 void frame_free_page (void * upage);
 
 #endif

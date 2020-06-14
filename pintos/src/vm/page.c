@@ -1,4 +1,5 @@
 #include "page.h"
+#include "frame.h"
 #include "threads/palloc.h"
 #include <bitmap.h>
 #include <debug.h>
@@ -118,8 +119,11 @@ bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, 
         supplemental_page_table_set_frame(&(thread_current()->supp_table), pte->upage, pte->kpage);
 
         memset(pte->upage, 0, PGSIZE);
-
+        struct frame* fr = get_frame(pte->upage);
+        ASSERT(fr != NULL);
+        fr->pinned = true;
         size_t tot = file_read(mmap_info->file_info->file, pte->upage, PGSIZE);
+        fr->pinned = false;
     }
     mmap_info->upage_modify = malloc(mmap_info->file_info->size);
     memcpy(mmap_info->upage_modify, mmap_info->upage, mmap_info->file_info->size);
