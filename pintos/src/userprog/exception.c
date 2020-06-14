@@ -185,11 +185,13 @@ page_fault (struct intr_frame *f)
       if(swap_idx != -1){
          // printf("ALREADY EVICTED \n");
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-         struct fr = get_frame(fault_page);
+         struct frame *temp_frame = get_frame(kpage);
+         temp_frame -> pinned = true;
          swap_get(swap_idx, kpage);
          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
          pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
          swap_free(swap_idx);
+         temp_frame -> pinned = false;
          return;
       } else {
          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
@@ -217,7 +219,6 @@ page_fault (struct intr_frame *f)
   /* killing process (can't handle page fault)*/
   kill (f);
 }
-
 
 
 

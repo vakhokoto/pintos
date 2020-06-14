@@ -130,4 +130,3 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
  void swap_table_init(struct hash* swap_table){
     hash_init(swap_table, hash_swap_table, comp_func_swap_table, NULL);
  }
-
