@@ -256,6 +256,7 @@ void process_exit (void) {
     #ifdef VM
     destroy_mmap_table(thread_current());
     supplemental_page_table_destroy(&(thread_current()->supp_table));
+    delete_thread_frames(cur);
     #endif
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,

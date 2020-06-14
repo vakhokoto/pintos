@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/hash.h"
 #include "userprog/pagedir.h"
+#include "vm/frame.h"
 
 /* init Supplemental Page Table for process */ 
 void supplemental_page_table_init(struct hash* supplemental_page_table) {
@@ -110,7 +111,7 @@ bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, 
             return false;
         }
     }
-    
+    set_pinned(mmap_info->upage, mmap_info->file_info->size, true);
     for(i = 0; i*PGSIZE < mmap_info->file_info->size; i++) {
         page_table_entry* pte = malloc(sizeof(page_table_entry));
         pte->upage = mmap_info->upage + i*PGSIZE;
@@ -121,6 +122,7 @@ bool supplemental_page_table_try_map_file(struct hash* supplemental_page_table, 
 
         size_t tot = file_read(mmap_info->file_info->file, pte->upage, PGSIZE);
     }
+    set_pinned(mmap_info->upage, mmap_info->file_info->size, false);
     mmap_info->upage_modify = malloc(mmap_info->file_info->size);
     memcpy(mmap_info->upage_modify, mmap_info->upage, mmap_info->file_info->size);
     lock_release(&lock);

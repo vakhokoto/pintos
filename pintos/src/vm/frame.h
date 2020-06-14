@@ -19,4 +19,5 @@ uint8_t *frame_get_page(enum palloc_flags, uint8_t *);
 void frame_free_page (void *);
 struct frame* get_frame(void*);
 void set_pinned(void *, size_t, bool);
+void delete_thread_frames(struct thread* t);
 #endif
