@@ -162,50 +162,96 @@ page_fault (struct intr_frame *f)
    }
    // printf("who faulted %p %d \n", fault_addr, is_user_vaddr(fault_addr));
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
-   // printf("who faulted2 %p %d \n", fault_addr, is_user_vaddr(fault_addr));
 
-   // printf("%p, %p\n", fault_addr, fault_page);
-   // printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
-   // printf("boollllllllllllllll %d %d %d %d %d \n", not_present, esp <= fault_addr , fault_addr == f->esp - 32 , fault_addr == f->esp - 4 , fault_addr < PHYS_BASE);
-   if (not_present && (esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4) && fault_addr < PHYS_BASE) {
-      // printf("PAGDIT SETTT \n");
-      if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
-         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-         pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
-      } else {
-         supplemental_page_table_set_frame(&(thread_current()->supp_table), fault_page, NULL);
-      }
-   
+   swap_idx_t swap_idx_prim = get_swap_idx(&(thread_current()->swap_table), fault_page);
+
+   if(not_present && is_user_vaddr(fault_addr) && swap_idx_prim != -1){
+      // printf("ALREADY EVICTED \n");
+      uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+      struct frame *temp_frame = get_frame(kpage);
+      temp_frame -> pinned = true;
+      swap_get(swap_idx_prim, kpage);
+      pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+      pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
+      swap_free(swap_idx_prim, fault_page);
+      temp_frame -> pinned = false;
       return;
    }
 
-   if (not_present && is_user_vaddr(fault_addr) && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
-      swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
-      // printf("swap IDX %d \n", swap_idx);
-      if(swap_idx != -1){
-         // printf("ALREADY EVICTED \n");
-         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-         struct frame *temp_frame = get_frame(kpage);
-         temp_frame -> pinned = true;
-         swap_get(swap_idx, kpage);
-         pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
-         pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
-         swap_free(swap_idx);
-         temp_frame -> pinned = false;
-         return;
-      } else {
-         uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-         pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
-         return;
-      }
-   } 
+   if(not_present && is_user_vaddr(fault_addr) && fault_addr >= f -> cs &&  supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
+      // printf("meore\n");
+      // printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
+      uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+      // printf("kpage -> %p --- %d\n", kpage);
+      pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+      return;
+   }
+
+   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f -> cs && not_present && (esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4) && fault_addr < PHYS_BASE) {
+      // printf("mesame\n");
+      supplemental_page_table_set_frame(&(thread_current()->supp_table), fault_page, NULL);
+      return;
+   }
+   // // printf("who faulted2 %p %d \n", fault_addr, is_user_vaddr(fault_addr));
+
+   // printf("%p, %p\n", fault_addr, fault_page);
+   // printf("boollllllllllllllll %d %d %d %d %d \n", not_present, esp <= fault_addr , fault_addr == f->esp - 32 , fault_addr == f->esp - 4 , fault_addr < PHYS_BASE);
+   // if (not_present && (esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4) && fault_addr < PHYS_BASE) {
+   //    printf("stack grow \n");
+   //    if(supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
+   //       swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
+   //       printf("swap IDX %d \n", swap_idx);
+   //       if(swap_idx != -1){
+   //          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+
+   //          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+   //          pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
+            
+   //          struct frame *temp_frame = get_frame(kpage);
+   //          temp_frame -> pinned = true;
+   //          swap_get(swap_idx, fault_page);
+   //          swap_free(swap_idx);
+   //          printf("ALREADY EVICTED STACK %p\n", kpage);
+   //          temp_frame -> pinned = false;
+   //          return;
+   //       } else {
+   //          uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+   //          pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+   //       }
+   //    } else {
+   //       supplemental_page_table_set_frame(&(thread_current()->supp_table), fault_page, NULL);
+   //    }
+   
+   //    return;
+   // }
+
+   // if (not_present && is_user_vaddr(fault_addr) && supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
+   //    swap_idx_t swap_idx = get_swap_idx(&(thread_current()->swap_table),fault_page);
+   //    printf("swap IDX %d \n", swap_idx);
+   //    if(swap_idx != -1){
+   //       printf("ALREADY EVICTED \n");
+   //       uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+   //       struct frame *temp_frame = get_frame(kpage);
+   //       temp_frame -> pinned = true;
+   //       swap_get(swap_idx, kpage);
+   //       pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+   //       pagedir_set_dirty(thread_current()->pagedir,fault_page, false);
+   //       swap_free(swap_idx);
+   //       temp_frame -> pinned = false;
+   //       return;
+   //    } else {
+   //       uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
+   //       pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
+   //       return;
+   //    }
+   // } 
     
 //   Kernel
-  if(!user) {
-    f->eip = f->eax;
-    f->eax = -1;
-    return;
-  }
+   if(!user) {
+      f->eip = f->eax;
+      f->eax = -1;
+      return;
+   }
   #endif
 
   /* To implement virtual memory, delete the rest of the function

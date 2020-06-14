@@ -85,6 +85,7 @@ uint8_t* evict_frame(enum palloc_flags flags, uint8_t* upage){
     // DIRTY BITS THING
     to_evict -> pinned = true;
     swap_idx_t idx = swap_add(to_evict->kpage);
+    // printf("page -> %p , data -> %d", idx, *to_evict->kpage);
     swap_table_entry* entry = malloc(sizeof(swap_table_entry));
     entry->upage = to_evict->upage;
     entry->idx = idx;

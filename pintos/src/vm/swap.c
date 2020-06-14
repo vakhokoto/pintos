@@ -41,14 +41,15 @@ void swap_init(){
 swap_idx_t swap_add(void *kpage){
     ASSERT (kpage != NULL);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
-    void* ktemp = kpage;
-    if (!lock_held_by_current_thread(&swap_access_lock)){
+    char *ktemp = (char *)kpage;
         lock_acquire(&swap_access_lock);
-    }
 
     // printf("swap:\n\tadding to swap from -> %p\n", kpage);
 
     swap_idx_t idx = bitmap_scan(map, 0, SECTORS_PER_PAGE, false);
+
+    ASSERT (idx != BITMAP_ERROR);
+
     if (idx == BITMAP_ERROR){
         // printf("\terrored\n");
         lock_release(&swap_access_lock);
@@ -73,10 +74,8 @@ void swap_get(swap_idx_t idx, void* kpage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // printf("swap:\n\tgetting info idx | kpage -> %d %p\n", idx, kpage);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
-    void* ktemp = kpage;
-    if (!lock_held_by_current_thread(&swap_access_lock)){
+    char *ktemp = (char *)kpage;
         lock_acquire(&swap_access_lock);
-    }
 
     swap_idx_t i;
     for (i = idx; i < idx + SECTORS_PER_PAGE; i++){
@@ -88,25 +87,28 @@ void swap_get(swap_idx_t idx, void* kpage){
 }
 
 /* function to free and remove page from swap */
-void swap_free(swap_idx_t idx){
+void swap_free(swap_idx_t idx, uint8_t *upage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // printf("swap:\n\tfreeing ong idx -> %d\n", idx);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     
-    if (!lock_held_by_current_thread(&swap_access_lock)){
-        lock_acquire(&swap_access_lock);
-    }
+    lock_acquire(&swap_access_lock);
 
     bitmap_set_multiple(map, idx, SECTORS_PER_PAGE, false);
+    struct swap_table_entry tmp;
+    tmp.idx = idx;
+    tmp.upage = upage;
+    struct hash_elem *elem = hash_find(&(thread_current() -> swap_table), &(tmp.elemH));
+    struct swap_table_entry *ent = hash_entry(elem, struct swap_table_entry, elemH);
+    hash_delete(&(thread_current() -> swap_table), &(tmp.elemH));
+    free(ent);
 
     lock_release(&swap_access_lock);
 }
 
 swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
     // printf("swap:\n\tgetting index  swap_table | upage -> %p %p\n", swap_table, upage);
-    if (!lock_held_by_current_thread(&swap_access_lock)){
-        lock_acquire(&swap_access_lock);
-    }
+    lock_acquire(&swap_access_lock);
     
     swap_table_entry* ste = malloc(sizeof(swap_table_entry));
     if(ste == NULL){

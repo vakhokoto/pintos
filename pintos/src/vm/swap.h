@@ -23,7 +23,7 @@ swap_idx_t swap_add(void *);
 void swap_get(swap_idx_t idx, void* kpage);
 
 /* function to free and remove page from swap */
-void swap_free(swap_idx_t);
+void swap_free(swap_idx_t, uint8_t *);
 
 void swap_table_init(struct hash* swap_table);
 
