@@ -42,7 +42,7 @@ swap_idx_t swap_add(void *kpage){
     ASSERT (kpage != NULL);
     // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     char *ktemp = (char *)kpage;
-        lock_acquire(&swap_access_lock);
+    lock_acquire(&swap_access_lock);
 
     // printf("swap:\n\tadding to swap from -> %p\n", kpage);
 
