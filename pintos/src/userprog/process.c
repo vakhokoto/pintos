@@ -196,7 +196,9 @@ void destroy_mmap_table(struct thread* cur) {
   while (!list_empty (&(cur->mmap_table))){
     struct list_elem *e = list_front(&(cur->mmap_table));
     struct mmap_info_t* mmap_info = list_entry(e, struct mmap_info_t, elem);
+    #ifdef VM
     handle_munmap(mmap_info->mid);
+    #endif
   }
 }
 

@@ -306,13 +306,14 @@ int handle_write(int fd, const void *buffer, unsigned size) {
       handle_exit(-1);
       return false;
     }
-
+    #ifdef VM
     set_pinned(buffer, size, true);
-
+    #endif
     /* writing into file */
     written_bytes = file_write(output_file -> file, buffer, size);
-
+    #ifdef VM
     set_pinned(buffer, size, false);
+    #endif
   }
 
   lock_release(&file_lock);
@@ -353,12 +354,13 @@ int handle_read(int fd, void* buffer, unsigned size) {
       lock_release(&file_lock);
       return -1;
     }
-
+    #ifdef VM
     set_pinned(buffer, size, true);
-
+    #endif
     bytes_read = file_read(file_info -> file, buffer, size);
-
+    #ifdef VM
     set_pinned(buffer, size, false);
+    #endif
   }
   lock_release(&file_lock);
   return bytes_read;
@@ -523,6 +525,7 @@ static bool put_user (uint8_t *udst, uint8_t byte){
   return error_code != -1;
 }
 
+#ifdef VM
 /**
  * Finds mmap info structure in its mmap list 
  * Returns mmap_info_t structure pointer.
@@ -624,4 +627,4 @@ void handle_munmap(mapid_t mapping) {
 
   lock_release(&file_lock);
 }
-// #endif
+#endif
