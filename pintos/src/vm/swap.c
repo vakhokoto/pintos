@@ -25,7 +25,6 @@ static struct lock swap_access_lock;
 
 /* initializes the swap block */
 void swap_init(){
-    // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     swap_block = block_get_role(BLOCK_SWAP);
     ASSERT(swap_block != NULL);
     lock_init(&swap_access_lock);
@@ -40,7 +39,6 @@ void swap_init(){
     there is no place for page and entire swap is full */
 swap_idx_t swap_add(void *kpage){
     ASSERT (kpage != NULL);
-    // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     char *ktemp = (char *)kpage;
     lock_acquire(&swap_access_lock);
 
@@ -71,7 +69,6 @@ swap_idx_t swap_add(void *kpage){
 void swap_get(swap_idx_t idx, void* kpage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // printf("swap:\n\tgetting info idx | kpage -> %d %p\n", idx, kpage);
-    // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     char *ktemp = (char *)kpage;
         lock_acquire(&swap_access_lock);
 
@@ -88,7 +85,6 @@ void swap_get(swap_idx_t idx, void* kpage){
 void swap_free(swap_idx_t idx, uint8_t *upage){
     ASSERT(idx >= 0 && idx <= bcount - SECTORS_PER_PAGE);
     // printf("swap:\n\tfreeing ong idx -> %d\n", idx);
-    // შეიძლება ჯიდევ უნდა დამატებით შემოწმებები და დღეს დავამატებ
     
     lock_acquire(&swap_access_lock);
 
@@ -126,7 +122,6 @@ swap_idx_t get_swap_idx(struct hash* swap_table, uint8_t* upage) {
 
 
 /**Swap Table*/
-
- void swap_table_init(struct hash* swap_table){
+void swap_table_init(struct hash* swap_table){
     hash_init(swap_table, hash_swap_table, comp_func_swap_table, NULL);
- }
+}

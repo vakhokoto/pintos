@@ -153,20 +153,17 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   #ifdef VM
-//   printf("fualt -> %p\n", fault_addr);
    uint8_t* esp;
    if (user){
       esp = f->esp;
    } else {
       esp = thread_current()->saved_esp;
    }
-   // printf("who faulted %p %d \n", fault_addr, is_user_vaddr(fault_addr));
    uint8_t* fault_page = (uint8_t*)pg_round_down(fault_addr);
 
    swap_idx_t swap_idx_prim = get_swap_idx(&(thread_current()->swap_table), fault_page);
 
    if(not_present && is_user_vaddr(fault_addr) && swap_idx_prim != -1){
-      // printf("ALREADY EVICTED \n");
       uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
       struct frame *temp_frame = get_frame(kpage);
       temp_frame -> pinned = true;
@@ -178,22 +175,20 @@ page_fault (struct intr_frame *f)
       return;
    }
 
-   if(not_present && is_user_vaddr(fault_addr) && fault_addr >= f -> cs &&  supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
-      // printf("meore\n");
-      // printf("PAGE FAULT VAIME DEDAAA %p, %d, %d, %d, %d \n", esp, is_user_vaddr(fault_addr), (esp <= fault_addr || fault_addr == f->esp-4 || fault_addr == f->esp-32), supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL, fault_addr >= f->cs);
+   if(not_present && is_user_vaddr(fault_addr) && fault_addr >= f -> cs 
+         &&  supplemental_page_table_lookup_page(&(thread_current()->supp_table), fault_page) != NULL){
       uint8_t* kpage = frame_get_page(PAL_USER, fault_page);
-      // printf("kpage -> %p --- %d\n", kpage);
       pagedir_set_page(thread_current()->pagedir, fault_page, kpage, true);
       return;
    }
 
-   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f -> cs && not_present && (esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4) && fault_addr < PHYS_BASE) {
-      // printf("mesame\n");
+   if (not_present && is_user_vaddr(fault_addr) && fault_addr >= f -> cs && not_present 
+         && (esp <= fault_addr || fault_addr == f->esp - 32 || fault_addr == f->esp - 4) && fault_addr < PHYS_BASE) {
       supplemental_page_table_set_frame(&(thread_current()->supp_table), fault_page, NULL);
       return;
    }
     
-//   Kernel
+   /* Kernel */
    if(!user) {
       f->eip = f->eax;
       f->eax = -1;
