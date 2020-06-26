@@ -6,9 +6,68 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "lib/kernel/hash.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
+#define BUF_SIZE 64
+static struct hash cache_map;
+static struct list cache_list;
+struct lock cache_lock;
+
+typedef struct cache_entry{
+  block_sector_t sector;
+  uint8_t* buffer;
+  bool writing;
+  struct hash_elem elemH;
+  struct list_elem elemL;
+} cache_entry;
+
+static unsigned hash_cache (const void *elem, void* aux){
+    struct cache_entry *real_elem = hash_entry((struct hash_elem*)elem, cache_entry, elemH);
+    return hash_bytes(&(real_elem -> sector), sizeof(uint32_t));
+}
+
+static int comp_func_cache (struct hash_elem *a, struct hash_elem *b, void *aux){
+    struct cache_entry *aelem = hash_entry(a, cache_entry, elemH);
+    struct cache_entry *belem = hash_entry(b, cache_entry, elemH);
+    return aelem->sector > belem->sector;
+}
+
+void* lookup_cache(struct hash* map, block_sector_t sector){
+  cache_entry cache;
+  cache.sector = sector;
+  struct hash_elem* el = hash_find(map, &(cache.elemH));
+  if(el != NULL) return hash_entry(el, cache_entry, elemH);
+  return NULL;
+}
+
+cache_entry* new_cache(block_sector_t sector_idx, void* buff, bool writing){
+  if(list_size(&cache_list) == BUF_SIZE){
+    struct list_elem *e;
+    for (e = list_begin (&cache_list); e != list_end (&cache_list); e = list_next (e)){
+      cache_entry* entry = list_entry(e, struct cache_entry, elemL);
+      // Somthing wrong
+      if(entry->writing){
+        block_write (fs_device, sector_idx, entry->buffer);
+        list_remove(&entry->elemL);
+        hash_delete(&cache_map, &entry->elemH);
+        break;
+      }
+    }   
+  } 
+  cache_entry* cache = malloc(sizeof(cache_entry));
+  ASSERT(cache != NULL);
+  cache->buffer = malloc(BLOCK_SECTOR_SIZE);
+  ASSERT(cache->buffer != NULL);
+  memcpy(cache->buffer, buff, BLOCK_SECTOR_SIZE);
+  cache->sector = sector_idx;
+  cache->writing = writing;
+  hash_insert(&cache_map, &(cache->elemH));
+  list_push_back(&cache_list, &(cache->elemL));
+  return cache;
+}
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
@@ -62,6 +121,9 @@ void
 inode_init (void)
 {
   list_init (&open_inodes);
+  list_init (&cache_list);
+  hash_init (&cache_map, hash_cache, comp_func_cache, NULL);
+  lock_init (&cache_lock);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -219,6 +281,27 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
+      // lock_acquire(&cache_lock);
+      // cache_entry* entry = lookup_cache(&cache_map, sector_idx);
+      // if(entry != NULL){
+      //   memcpy (buffer + bytes_read, entry->buffer + sector_ofs, chunk_size);
+      // } else if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE) {
+      //   /* Read full sector directly into caller's buffer. */
+      //   block_read (fs_device, sector_idx, buffer + bytes_read);
+      //   new_cache(sector_idx, buffer + bytes_read, false);
+      // } else {
+      //   /* Read sector into bounce buffer, then partially copy
+      //       into caller's buffer. */
+      //   if (bounce == NULL) {
+      //     bounce = malloc (BLOCK_SECTOR_SIZE);
+      //     if (bounce == NULL)
+      //       break;
+      //   }
+      //   block_read (fs_device, sector_idx, bounce);
+      //   new_cache(sector_idx, bounce, false);
+      //   memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
+      // }
+      // lock_release(&cache_lock);
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
@@ -238,7 +321,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
           block_read (fs_device, sector_idx, bounce);
           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
         }
-
+      
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
@@ -280,6 +363,20 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
+      // lock_acquire(&cache_lock);
+      // cache_entry* entry = lookup_cache(&cache_map, sector_idx);
+      // if(entry == NULL){
+      //   if (bounce == NULL) {
+      //     bounce = malloc (BLOCK_SECTOR_SIZE);
+      //     if (bounce == NULL)
+      //       break;
+      //   }
+      //   block_read (fs_device, sector_idx, bounce);
+      //   entry = new_cache(sector_idx, bounce, true);
+      // }
+      
+      // memcpy (entry->buffer + sector_ofs, buffer + bytes_written, chunk_size);
+      // lock_release(&cache_lock);
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
