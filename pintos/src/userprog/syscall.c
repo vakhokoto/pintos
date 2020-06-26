@@ -46,6 +46,15 @@ mapid_t handle_mmap(int fd, uint8_t* upage);
 void handle_munmap(mapid_t map);
 #endif
 
+#ifdef FILESYS
+bool sys_chdir(const char *dir);
+bool sys_mkdir(const char *dir);
+bool sys_readdir(int fd, char *name);
+bool sys_isdir(int fd);
+int sys_inumber(int fd);
+#endif
+
+
 static struct lock file_lock, buffer_lock;
 struct intr_frame *fu;
 void syscall_init (void) {
@@ -140,6 +149,18 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       read_argv(argv, &mapping, sizeof(mapid_t));
       handle_munmap(mapping);
       break;
+    }
+    #endif
+
+    #ifdef FILESYS
+    case SYS_CHDIR:{
+
+    } case SYS_MKDIR:{
+
+    } case SYS_READDIR:{
+
+    } case SYS_ISDIR:{
+      
     }
     #endif
     default:
@@ -523,6 +544,30 @@ static bool put_user (uint8_t *udst, uint8_t byte){
   asm ("movl $1f, %0; movb %b2, %1; 1:"
   : "=&a" (error_code), "=m" (*udst) : "q" (byte));
   return error_code != -1;
+}
+
+
+
+bool chdir (const char *dir){
+  return false;
+}
+
+
+bool mkdir (const char *dir){
+  return false;
+}
+
+
+bool readdir (int fd, char *name){
+  return false;
+}
+
+bool isdir (int fd){
+  return false;
+}
+
+int inumber (int fd){
+  return 0;
 }
 
 #ifdef VM
