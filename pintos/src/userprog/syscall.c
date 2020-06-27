@@ -14,6 +14,7 @@
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "lib/string.h"
+#include "filesys/inode.h"
 
 #define PIECE_SIZE 100
 
@@ -46,6 +47,14 @@ mapid_t handle_mmap(int fd, uint8_t* upage);
 void handle_munmap(mapid_t map);
 #endif
 
+#ifdef FILESYS
+bool handle_chdir(const char* dir);
+bool handle_mkdir(const char* dir);
+bool handle_readdir(int fd, const char* name);
+bool handle_isdir(int fd);
+int handle_inumber(int fd);
+#endif
+
 static struct lock file_lock, buffer_lock;
 struct intr_frame *fu;
 void syscall_init (void) {
@@ -55,7 +64,6 @@ void syscall_init (void) {
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
-
   if(!buffer_available(f->esp, sizeof(int))){
     handle_exit(-1);
     return;
@@ -63,7 +71,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 
   uint32_t SYSCALL_NUM = ((uint32_t*) f->esp)[0];
   void* argv = f->esp + sizeof (uint32_t); 
-  const char* cmd_line, file;
+  const char* cmd_line, file, dir, name;
   int fd, status, i, pid;
   const void* buffer;
   unsigned size;
@@ -139,6 +147,30 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       mapid_t mapping;
       read_argv(argv, &mapping, sizeof(mapid_t));
       handle_munmap(mapping);
+      break;
+    }
+    #endif
+    #ifdef FILESYS
+    case SYS_CHDIR: {
+      read_argv(argv, &dir, sizeof(dir));
+      f->eax = handle_chdir(*(char**)argv);
+      break;
+    }case SYS_MKDIR: {
+      read_argv(argv, &dir, sizeof(dir));
+      f->eax = handle_mkdir(*(char**)argv);
+      break;
+    }case SYS_READDIR: {
+      read_argv(argv, &fd, sizeof(fd));
+      read_argv(argv + sizeof(fd), &name, sizeof(name));
+      f->eax = handle_readdir(fd, name);
+      break;
+    }case SYS_ISDIR: {
+      read_argv(argv, &fd, sizeof(fd));
+      f->eax = handle_isdir(fd);
+      break;
+    }case SYS_INUMBER: {
+      read_argv(argv, &fd, sizeof(fd));
+      f->eax = handle_inumber(fd);
       break;
     }
     #endif
@@ -628,3 +660,55 @@ void handle_munmap(mapid_t mapping) {
   lock_release(&file_lock);
 }
 #endif
+
+// #ifdef FILESYS
+bool handle_chdir(const char* dir) {
+    ASSERT(is_user_vaddr(dir));
+    
+    bool eax;
+    lock_acquire(&file_lock);
+    eax = filesys_chdir(dir);
+    lock_release(&file_lock);
+    return eax;
+}
+
+bool handle_mkdir(const char* dir) {
+    if(!is_user_vaddr(dir) || !strlen(dir)) 
+      return false;
+
+    bool eax;
+    lock_acquire(&file_lock);
+    eax = filesys_mkdir(dir);
+    lock_release(&file_lock);
+    return eax;
+}
+
+bool handle_readdir(int fd, const char* name) {
+    bool eax;
+    lock_acquire(&file_lock);
+    // eax = 
+    lock_release(&file_lock);
+    return eax;
+}
+
+bool handle_isdir(int fd) {
+    bool eax;
+    lock_acquire(&file_lock);
+    struct inode* inode;
+    
+    // eax = inode->data.isdir
+    lock_release(&file_lock);
+    return eax;
+}
+
+int handle_inumber(int fd) {
+    int eax = -1;
+    lock_acquire(&file_lock);
+    file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
+    if(file_info && file_info->file)
+      eax = inode_get_inumber(file_info->file);
+
+    lock_release(&file_lock);
+    return eax;
+}
+// #endif
