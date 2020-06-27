@@ -12,8 +12,14 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 #define BUF_SIZE 64
+
+/* cache map */
 static struct hash cache_map;
+
+/* list to keep track of last cached file */
 static struct list cache_list;
+
+/* lock for cache access */
 struct lock cache_lock;
 
 typedef struct cache_entry{
@@ -26,47 +32,73 @@ typedef struct cache_entry{
 
 static unsigned hash_cache (const void *elem, void* aux){
     struct cache_entry *real_elem = hash_entry((struct hash_elem*)elem, cache_entry, elemH);
+
     return hash_bytes(&(real_elem -> sector), sizeof(uint32_t));
 }
 
 static int comp_func_cache (struct hash_elem *a, struct hash_elem *b, void *aux){
     struct cache_entry *aelem = hash_entry(a, cache_entry, elemH);
     struct cache_entry *belem = hash_entry(b, cache_entry, elemH);
+
     return aelem->sector > belem->sector;
 }
 
 void* lookup_cache(struct hash* map, block_sector_t sector){
+  printf("looking -> %d\n", sector);
   cache_entry cache;
   cache.sector = sector;
   struct hash_elem* el = hash_find(map, &(cache.elemH));
-  if(el != NULL) return hash_entry(el, cache_entry, elemH);
+  
+  if(el != NULL) {
+    return hash_entry(el, cache_entry, elemH);
+  }
+  
   return NULL;
 }
 
-cache_entry* new_cache(block_sector_t sector_idx, void* buff, bool writing){
+void cache_evict(){
+  printf("------------evicting------------\n");
+  struct list_elem *e;
+  e = list_begin(&cache_list);
+  ASSERT(e != NULL);
+  
+  cache_entry* entry = list_entry(e, struct cache_entry, elemL);
+  
+  if(entry->writing) {
+    block_write (fs_device, entry -> sector, entry->buffer);
+  }
+
+  hash_delete(&cache_map, &entry->elemH);
+
+  list_remove(&entry->elemL);
+  
+  free(entry -> buffer);
+  free(entry);
+}
+
+cache_entry* cache_insert(block_sector_t sector_idx, bool writing){
+  printf("-----------inserting-----------\n");
+  printf("%d | %d\n", sector_idx, list_size(&cache_list));
+  /* if cache is full one entry should be evicted */
   if(list_size(&cache_list) == BUF_SIZE){
-    struct list_elem *e;
-    for (e = list_begin (&cache_list); e != list_end (&cache_list); e = list_next (e)){
-      cache_entry* entry = list_entry(e, struct cache_entry, elemL);
-      // Somthing wrong
-      if(entry->writing){
-        block_write (fs_device, sector_idx, entry->buffer);
-        list_remove(&entry->elemL);
-        hash_delete(&cache_map, &entry->elemH);
-        break;
-      }
-    }   
-  } 
+    cache_evict();
+  }
+
   cache_entry* cache = malloc(sizeof(cache_entry));
   ASSERT(cache != NULL);
   cache->buffer = malloc(BLOCK_SECTOR_SIZE);
   ASSERT(cache->buffer != NULL);
-  memcpy(cache->buffer, buff, BLOCK_SECTOR_SIZE);
+
+  block_read(fs_device, sector_idx, cache -> buffer);
   cache->sector = sector_idx;
   cache->writing = writing;
+
   hash_insert(&cache_map, &(cache->elemH));
   list_push_back(&cache_list, &(cache->elemL));
   return cache;
+}
+
+void cache_write(void *dst, void *src, size_t size){
 }
 
 /* On-disk inode.
@@ -281,28 +313,36 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
+
+      printf("READING FROM BLOCK\n");
+      
       // lock_acquire(&cache_lock);
       // cache_entry* entry = lookup_cache(&cache_map, sector_idx);
-      // if(entry != NULL){
-      //   memcpy (buffer + bytes_read, entry->buffer + sector_ofs, chunk_size);
-      // } else if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE) {
-      //   /* Read full sector directly into caller's buffer. */
-      //   block_read (fs_device, sector_idx, buffer + bytes_read);
-      //   new_cache(sector_idx, buffer + bytes_read, false);
+      // if (entry != NULL){
+      //   printf("VIPOVE read sector %d\n", entry->sector);
+      //   bounce = entry->sector;
       // } else {
-      //   /* Read sector into bounce buffer, then partially copy
-      //       into caller's buffer. */
-      //   if (bounce == NULL) {
-      //     bounce = malloc (BLOCK_SECTOR_SIZE);
-      //     if (bounce == NULL)
-      //       break;
-      //   }
-      //   block_read (fs_device, sector_idx, bounce);
-      //   new_cache(sector_idx, bounce, false);
-      //   memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
-      // }
-      // lock_release(&cache_lock);
+      //   printf("inserting\n");
 
+      //   entry = cache_insert(sector_idx, false);
+      //   bounce = entry->sector;
+      //   printf("inserted\n");
+      // }
+
+      // if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
+      //   {
+      //     /* Read full sector directly into caller's buffer. */
+      //     memcpy (buffer + bytes_read, bounce, BLOCK_SECTOR_SIZE);
+      //   }
+      // else
+      //   {
+      //     /* Read sector into bounce buffer, then partially copy
+      //        into caller's buffer. */
+      //     memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
+      //   }
+      
+      // lock_release(&cache_lock);
+      // printf("pass one exec\n");
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Read full sector directly into caller's buffer. */
@@ -321,13 +361,11 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
           block_read (fs_device, sector_idx, bounce);
           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
         }
-      
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
       bytes_read += chunk_size;
     }
-  free (bounce);
 
   return bytes_read;
 }
@@ -350,6 +388,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   while (size > 0)
     {
+      printf("SIZE : %d\n", size);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
@@ -363,53 +402,59 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
-      // lock_acquire(&cache_lock);
-      // cache_entry* entry = lookup_cache(&cache_map, sector_idx);
-      // if(entry == NULL){
-      //   if (bounce == NULL) {
-      //     bounce = malloc (BLOCK_SECTOR_SIZE);
-      //     if (bounce == NULL)
-      //       break;
-      //   }
-      //   block_read (fs_device, sector_idx, bounce);
-      //   entry = new_cache(sector_idx, bounce, true);
-      // }
       
-      // memcpy (entry->buffer + sector_ofs, buffer + bytes_written, chunk_size);
-      // lock_release(&cache_lock);
+      lock_acquire(&cache_lock);
+
+      cache_entry* entry = lookup_cache(&cache_map, sector_idx);
+      printf("sector -> %d\n", sector_idx);
+      if (entry != NULL){
+        printf("-----------vipove-----------\n");
+        
+        bounce = entry -> buffer;
+        entry -> writing = true;
+      } else {
+        entry = cache_insert(sector_idx, true);
+
+        bounce = entry -> buffer;
+        printf("LETS INSERT IN CACHE\n");
+      }
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
+          printf("----------mtliani----------\n");
           /* Write full sector directly to disk. */
-          block_write (fs_device, sector_idx, buffer + bytes_written);
+          memcpy (bounce, buffer + bytes_written, BLOCK_SECTOR_SIZE);
+          printf("-------------chavwere-------------\n");
         }
       else
         {
           /* We need a bounce buffer. */
-          if (bounce == NULL)
-            {
-              bounce = malloc (BLOCK_SECTOR_SIZE);
-              if (bounce == NULL)
-                break;
-            }
 
           /* If the sector contains data before or after the chunk
              we're writing, then we need to read in the sector
              first.  Otherwise we start with a sector of all zeros. */
-          if (sector_ofs > 0 || chunk_size < sector_left)
-            block_read (fs_device, sector_idx, bounce);
-          else
+          if (sector_ofs > 0 || chunk_size < sector_left){
+            printf("sector_ofs > 0 || chunk_size < sector_left\n");
+            bounce = bounce;
+          }
+          else{
             memset (bounce, 0, BLOCK_SECTOR_SIZE);
+            printf("NOT (sector_ofs > 0 || chunk_size < sector_left)\n");
+          }
+          printf("BEFORE WRITING in bounce\n");
           memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
-          block_write (fs_device, sector_idx, bounce);
+          printf("AFTER WRITING in bounce\n");
         }
+      lock_release(&cache_lock);
 
       /* Advance. */
       size -= chunk_size;
+      // printf("changed size  %d\n", size);
       offset += chunk_size;
       bytes_written += chunk_size;
     }
-  free (bounce);
+
+  printf("------------written------------\n");
 
   return bytes_written;
 }
