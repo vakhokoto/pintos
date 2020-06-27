@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "threads/thread.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -102,12 +103,49 @@ do_format (void)
   printf ("done.\n");
 }
 
-bool filesys_chdir(const char* dir) {
+char* configure_dir(char* dir_base, char* dir_tail) {
+  char* tok_ptr = NULL;
+  char* token = strtok_r(dir_tail, "/", &tok_ptr);
   
-  return false;
+  while(token && dir_base) {
+    struct inode* inode;
+    if(dir_lookup(dir_base, token, &inode)) {
+      dir_base = dir_open(inode);
+    }
+    token = strtok_r(NULL, "/", &tok_ptr);
+  }
+
+  return dir_base;
+} 
+
+bool filesys_chdir(const char* dir) {
+  struct dir* chdir;
+  if(dir[0] == '/' || !thread_current()->dir) {
+    chdir = dir_open_root();
+  } else {
+    chdir = dir_reopen(thread_current()->dir);
+  }
+
+  chdir = configure_dir(chdir, dir);
+
+  if(!chdir) return false;
+
+  dir_close(thread_current()->dir);
+  thread_current()->dir = chdir;
+  
+  return true;
 }
 
 bool filesys_mkdir(const char* dir) {
-  
+  struct dir* mkdir;
+  struct dir* chdir;
+  if(dir[0] == '/' || !thread_current()->dir) {
+    mkdir = dir_open_root();
+  } else {
+    mkdir = dir_reopen(thread_current()->dir);
+  }
+
+  mkdir = configure_dir(mkdir, dir);
+  filesys_create(mkdir, 0);
   return false;
 }

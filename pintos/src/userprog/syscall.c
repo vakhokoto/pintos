@@ -659,7 +659,7 @@ void handle_munmap(mapid_t mapping) {
 }
 #endif
 
-// #ifdef FILESYS
+#ifdef FILESYS
 bool handle_chdir(const char* dir) {
     ASSERT(is_user_vaddr(dir));
     
@@ -706,4 +706,4 @@ int handle_inumber(int fd) {
     lock_release(&file_lock);
     return eax;
 }
-// #endif
+#endif
