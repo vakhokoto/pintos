@@ -14,9 +14,7 @@
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "lib/string.h"
-#ifdef FILESYS
 #include "filesys/inode.h"
-#endif
 
 #define PIECE_SIZE 100
 
@@ -663,7 +661,7 @@ void handle_munmap(mapid_t mapping) {
 }
 #endif
 
-#ifdef FILESYS
+// #ifdef FILESYS
 bool handle_chdir(const char* dir) {
     ASSERT(is_user_vaddr(dir));
     
@@ -696,7 +694,9 @@ bool handle_readdir(int fd, const char* name) {
 bool handle_isdir(int fd) {
     bool eax;
     lock_acquire(&file_lock);
-    // eax = 
+    struct inode* inode;
+    
+    // eax = inode->data.isdir
     lock_release(&file_lock);
     return eax;
 }
@@ -711,4 +711,4 @@ int handle_inumber(int fd) {
     lock_release(&file_lock);
     return eax;
 }
-#endif
+// #endif
