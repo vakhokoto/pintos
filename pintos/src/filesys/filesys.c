@@ -138,7 +138,6 @@ bool filesys_chdir(const char* dir) {
 
 bool filesys_mkdir(const char* dir) {
   struct dir* mkdir;
-  struct dir* chdir;
   if(dir[0] == '/' || !thread_current()->dir) {
     mkdir = dir_open_root();
   } else {

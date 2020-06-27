@@ -14,9 +14,9 @@
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "lib/string.h"
-// #ifdef FILESYS
+#ifdef FILESYS
 #include "filesys/inode.h"
-// #endif
+#endif
 
 #define PIECE_SIZE 100
 
@@ -66,7 +66,6 @@ void syscall_init (void) {
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
-
   if(!buffer_available(f->esp, sizeof(int))){
     handle_exit(-1);
     return;
@@ -156,20 +155,25 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     #ifdef FILESYS
     case SYS_CHDIR: {
       read_argv(argv, &dir, sizeof(dir));
-      f->eax = handle_chdir(dir);
+      f->eax = handle_chdir(*(char**)argv);
+      break;
     }case SYS_MKDIR: {
-      read_argv(argv, &file, sizeof(dir));
-      f->eax = handle_mkdir(dir);
+      read_argv(argv, &dir, sizeof(dir));
+      f->eax = handle_mkdir(*(char**)argv);
+      break;
     }case SYS_READDIR: {
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &name, sizeof(name));
       f->eax = handle_readdir(fd, name);
+      break;
     }case SYS_ISDIR: {
       read_argv(argv, &fd, sizeof(fd));
       f->eax = handle_isdir(fd);
+      break;
     }case SYS_INUMBER: {
       read_argv(argv, &fd, sizeof(fd));
       f->eax = handle_inumber(fd);
+      break;
     }
     #endif
     default:
@@ -671,7 +675,8 @@ bool handle_chdir(const char* dir) {
 }
 
 bool handle_mkdir(const char* dir) {
-    ASSERT(is_user_vaddr(dir));
+    if(!is_user_vaddr(dir) || !strlen(dir)) 
+      return false;
 
     bool eax;
     lock_acquire(&file_lock);
