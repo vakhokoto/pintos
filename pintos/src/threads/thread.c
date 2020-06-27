@@ -297,6 +297,11 @@ thread_create (const char *name, int priority,
   swap_table_init(&(t->swap_table));
   list_init(&(t->mmap_table)); 
   #endif
+
+  #ifdef FILESYS
+  t->dir = NULL;
+  #endif
+
   /* Add to run queue. */
   thread_unblock (t);
   if (thread_current()->priority < priority){

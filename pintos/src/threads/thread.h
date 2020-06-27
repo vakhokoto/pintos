@@ -155,10 +155,16 @@ struct thread
    // #ifdef VM
     /* Owned by userprog/process.c. */
     struct hash supp_table;            /* Supplemental Page Table. */
-   // #endif
-    struct hash swap_table;
+
+    struct hash swap_table;            /* Swap Page Table */
 
     struct list mmap_table;            /* list of mapped files */
+   // #endif
+
+
+   // #ifdef FILESYS
+   struct dir* dir;                    /* current working directroy */
+   // #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
