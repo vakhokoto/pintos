@@ -46,6 +46,14 @@ mapid_t handle_mmap(int fd, uint8_t* upage);
 void handle_munmap(mapid_t map);
 #endif
 
+#ifdef FILESYS
+bool handle_chdir(const char* file);
+bool handle_mkdir(const char* file);
+bool handle_readdir(int fd, const char* file);
+bool handle_isdir(int fd);
+bool handle_inumber(int fd);
+#endif
+
 static struct lock file_lock, buffer_lock;
 struct intr_frame *fu;
 void syscall_init (void) {
@@ -140,6 +148,25 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
       read_argv(argv, &mapping, sizeof(mapid_t));
       handle_munmap(mapping);
       break;
+    }
+    #endif
+    #ifdef FILESYS
+    case SYS_CHDIR: {
+      read_argv(argv, &file, sizeof(file));
+      f->eax = handle_chdir(file);
+    }case SYS_MKDIR: {
+      read_argv(argv, &file, sizeof(file));
+      f->eax = handle_mkdir(file);
+    }case SYS_READDIR: {
+      read_argv(argv, &fd, sizeof(fd));
+      read_argv(argv + sizeof(fd), &file, sizeof(file));
+      f->eax = handle_readdir(fd, file);
+    }case SYS_ISDIR: {
+      read_argv(argv, &fd, sizeof(fd));
+      f->eax = handle_isdir(fd);
+    }case SYS_INUMBER: {
+      read_argv(argv, &fd, sizeof(fd));
+      f->eax = handle_inumber(fd);
     }
     #endif
     default:
@@ -626,5 +653,27 @@ void handle_munmap(mapid_t mapping) {
   }
 
   lock_release(&file_lock);
+}
+#endif
+
+#ifdef FILESYS
+bool handle_chdir(const char* file) {
+
+}
+
+bool handle_mkdir(const char* file) {
+
+}
+
+bool handle_readdir(int fd, const char* file) {
+
+}
+
+bool handle_isdir(int fd) {
+
+}
+
+bool handle_inumber(int fd) {
+
 }
 #endif
