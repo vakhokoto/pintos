@@ -101,3 +101,13 @@ do_format (void)
   free_map_close ();
   printf ("done.\n");
 }
+
+bool filesys_chdir(const char* dir) {
+  
+  return false;
+}
+
+bool filesys_mkdir(const char* dir) {
+  
+  return false;
+}
