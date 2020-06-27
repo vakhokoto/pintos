@@ -103,31 +103,30 @@ do_format (void)
   printf ("done.\n");
 }
 
-char* configure_dir(char* dir_base, char* dir_tail) {
+struct dir* configure_dir(char* path) {
+  struct dir* dir = NULL;
+  if(path[0] == '/' || !thread_current()->dir) {
+    dir = dir_open_root();
+  } else {
+    dir = dir_reopen(thread_current()->dir);
+  }
+
   char* tok_ptr = NULL;
-  char* token = strtok_r(dir_tail, "/", &tok_ptr);
+  char* token = strtok_r(path, "/", &tok_ptr);
   
-  while(token && dir_base) {
+  while(token && dir) {
     struct inode* inode;
-    if(dir_lookup(dir_base, token, &inode)) {
-      dir_base = dir_open(inode);
+    if(dir_lookup(dir, token, &inode)) {
+      dir = dir_open(inode);
     }
     token = strtok_r(NULL, "/", &tok_ptr);
   }
 
-  return dir_base;
+  return dir;
 } 
 
 bool filesys_chdir(const char* dir) {
-  struct dir* chdir;
-  if(dir[0] == '/' || !thread_current()->dir) {
-    chdir = dir_open_root();
-  } else {
-    chdir = dir_reopen(thread_current()->dir);
-  }
-
-  chdir = configure_dir(chdir, dir);
-
+  struct dir* chdir = configure_dir(dir);
   if(!chdir) return false;
 
   dir_close(thread_current()->dir);
@@ -136,16 +135,31 @@ bool filesys_chdir(const char* dir) {
   return true;
 }
 
-bool filesys_mkdir(const char* dir) {
-  struct dir* mkdir;
-  struct dir* chdir;
-  if(dir[0] == '/' || !thread_current()->dir) {
-    mkdir = dir_open_root();
-  } else {
-    mkdir = dir_reopen(thread_current()->dir);
+void split_dir_path(char* dir, char* path, char* name) {
+  size_t i;
+  for(i = strlen(dir)-1; i >= 0; i--) {
+      if(dir[i] == '/') break;
   }
+  strlcpy(path, dir, i);
+  strlcpy(name, dir+i+1, strlen(dir)-i-1);
+}
 
-  mkdir = configure_dir(mkdir, dir);
-  filesys_create(mkdir, 0);
-  return false;
+bool filesys_mkdir(const char* dir) {
+  char path[256];
+  char name[256];
+  split_dir_path(dir, path, name);
+
+  struct dir* mkdir = configure_dir(path);
+  if(!mkdir) return false;
+
+  block_sector_t inode_sector = 0;
+  bool success = (mkdir != NULL
+                  && free_map_allocate (1, &inode_sector)
+                  && inode_create (inode_sector, 0)
+                  && dir_add (mkdir, name, inode_sector));
+  if (!success && inode_sector != 0)
+    free_map_release (inode_sector, 1);
+  dir_close (mkdir);
+
+  return success;
 }

@@ -40,6 +40,10 @@ free_map_allocate (size_t cnt, block_sector_t *sectorp)
   return sector != BITMAP_ERROR;
 }
 
+int free_map_free_space(){
+  return bitmap_count(free_map, 0, bitmap_size(free_map), false);
+}
+
 /* Makes CNT sectors starting at SECTOR available for use. */
 void
 free_map_release (block_sector_t sector, size_t cnt)
