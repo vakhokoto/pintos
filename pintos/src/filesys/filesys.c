@@ -121,7 +121,6 @@ struct dir* configure_dir(char* path) {
     }
     token = strtok_r(NULL, "/", &tok_ptr);
   }
-
   return dir;
 } 
 
