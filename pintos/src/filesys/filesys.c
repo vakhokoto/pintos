@@ -103,13 +103,19 @@ do_format (void)
   printf ("done.\n");
 }
 
-struct dir* configure_dir(char* path) {
+/* Gets starting directory for searching files*/
+struct dir* get_starting_dir(char* path){
   struct dir* dir = NULL;
   if(path[0] == '/' || !thread_current()->dir) {
     dir = dir_open_root();
   } else {
     dir = dir_reopen(thread_current()->dir);
   }
+  return dir;
+}
+
+struct dir* configure_dir(char* path) {
+  struct dir* dir = get_starting_dir(path);
 
   char* tok_ptr = NULL;
   char* token = strtok_r(path, "/", &tok_ptr);
@@ -121,10 +127,12 @@ struct dir* configure_dir(char* path) {
     }
     token = strtok_r(NULL, "/", &tok_ptr);
   }
-
   return dir;
 } 
 
+/*Changes the current working directory of the process
+  to dir, which may be relative or absolute. Returns true 
+  if successful, false on failure.*/
 bool filesys_chdir(const char* dir) {
   struct dir* chdir = configure_dir(dir);
   if(!chdir) return false;
@@ -135,27 +143,89 @@ bool filesys_chdir(const char* dir) {
   return true;
 }
 
-void split_dir_path(char* dir, char* path, char* name) {
-  size_t i;
-  for(i = strlen(dir)-1; i >= 0; i--) {
-      if(dir[i] == '/') break;
+
+/* Extracts a file name part from *SRCP into PART, and updates *SRCP so that the
+next call will return the next file name part. Returns 1 if successful, 0 at
+end of string, -1 for a too-long file name part. */
+static int get_next_part (char part[NAME_MAX + 1], const char **srcp) {
+  const char *src = *srcp;
+  char *dst = part;
+  /* Skip leading slashes. If it’s all slashes, we’re done. */
+  while (*src == '/')
+    src++;
+  if (*src == '\0')
+    return 0;
+  /* Copy up to NAME_MAX character from SRC to DST.  Add null terminator. */
+  while (*src != '/' && *src != '\0') {
+    if (dst < part + NAME_MAX)
+      *dst++ = *src;
+    else
+      return -1;
+    src++;
   }
-  strlcpy(path, dir, i);
-  strlcpy(name, dir+i+1, strlen(dir)-i-1);
+  *dst = '\0';
+  /* Advance source pointer. */
+  *srcp = src;
+  return 1;
 }
 
-bool filesys_mkdir(const char* dir) {
-  char path[256];
-  char name[256];
-  split_dir_path(dir, path, name);
+//ES SPLIT AR MUSHAOBS VCVLI -- DACHI
+bool split_dir_path(char* dir, struct dir **res_dir, char* name) {
+  struct dir* mkdir = get_starting_dir(dir);
+  char next[15];
+  int found;
+  // printf("DEVIWYE\n");
+  found = get_next_part(name, &dir);
+  // printf("filename - %s found %d\n", name, found);
+  if (!(found > 0)) {
+    return (found > 0);
+  }
+  
+  while(true){
+    struct inode* inode;
+    found = get_next_part(next, &dir);
+    // printf("NEXT filename - %s, found %d\n", next, found);
+    if (found == -1){
+      return false;
+    } else if (found == 1){
+        // Something's wrong, name's been found in last iteration
+        if (dir_lookup (mkdir, name, &inode)){
+          dir_close(mkdir);
+          mkdir = dir_open(inode);
+          strlcpy (name, next, 15);
+        } else {
+          return false;
+        }
+    } else {
+      // end of string
+      break;
+    }
+  }
+  *res_dir = mkdir;
+  // printf("MOVRCHI, \n");
+  return true;
+}
 
-  struct dir* mkdir = configure_dir(path);
+
+/*Creates the directory named dir, which may be relative or absolute. Returns true if successful, 
+  false on failure. Fails if dir already exists or if any
+  directory name in dir, besides the last, does not already exist. 
+  That is, mkdir(“/a/b/c”) succeeds only if /a/b already exists and /a/b/c does not.*/
+bool filesys_mkdir(const char* dir) {
+  char name[256];
+  struct dir* mkdir = NULL;
+  // printf("making dir - %s\n", dir);
+  bool success;
+  success = split_dir_path(dir, &mkdir, name);
+  if (!success) return false;
+  // printf("splitted %s\n", name);
   if(!mkdir) return false;
 
   block_sector_t inode_sector = 0;
-  bool success = (mkdir != NULL
+  success = (mkdir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, 0)
+                  && dir_create (inode_sector, inode_get_inumber (dir_get_inode (mkdir))) 
                   && dir_add (mkdir, name, inode_sector));
   if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);
@@ -163,3 +233,4 @@ bool filesys_mkdir(const char* dir) {
 
   return success;
 }
+

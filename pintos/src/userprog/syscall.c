@@ -558,29 +558,6 @@ static bool put_user (uint8_t *udst, uint8_t byte){
 }
 
 
-
-bool chdir (const char *dir){
-  return false;
-}
-
-
-bool mkdir (const char *dir){
-  return false;
-}
-
-
-bool readdir (int fd, char *name){
-  return false;
-}
-
-bool isdir (int fd){
-  return false;
-}
-
-int inumber (int fd){
-  return 0;
-}
-
 #ifdef VM
 /**
  * Finds mmap info structure in its mmap list 
