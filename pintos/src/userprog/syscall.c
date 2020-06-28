@@ -15,6 +15,7 @@
 #include "vm/swap.h"
 #include "lib/string.h"
 #include "filesys/inode.h"
+#include "filesys/directory.h"
 
 #define PIECE_SIZE 100
 
@@ -685,9 +686,15 @@ bool handle_mkdir(const char* dir) {
 }
 
 bool handle_readdir(int fd, const char* name) {
-    bool eax;
+    bool eax = false;
     lock_acquire(&file_lock);
-    // eax = 
+    
+    file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
+    struct inode* inode = file_get_inode(file_info->file);
+    if(is_directory(inode)) {
+      eax = dir_readdir(thread_current()->dir, name); // DIR ?!
+    }
+
     lock_release(&file_lock);
     return eax;
 }
@@ -695,9 +702,11 @@ bool handle_readdir(int fd, const char* name) {
 bool handle_isdir(int fd) {
     bool eax;
     lock_acquire(&file_lock);
-    struct inode* inode;
     
-    // eax = inode->data.isdir
+    file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
+    struct inode* inode = file_get_inode(file_info->file);
+    eax = is_directory(inode);
+
     lock_release(&file_lock);
     return eax;
 }

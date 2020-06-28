@@ -91,6 +91,7 @@ typedef int tid_t;
 typedef struct file_info_t{
    struct list_elem elem;
    int fd, size;
+   struct dir* dir;
    struct file *file;
 } file_info_t;
 

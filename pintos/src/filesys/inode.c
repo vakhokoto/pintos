@@ -14,7 +14,7 @@
 #define INODE_MAGIC 0x494e4f44
 #define BUF_SIZE 64
 #define MAX_FILE_SIZE 16636
-#define DIRECT_SIZE 124
+#define DIRECT_SIZE 123
 #define SINGLE_SIZE 128
 #define ON_SINGLE_SECTOR 128
 #define DOUBLE_SIZE 128 * 128
@@ -27,10 +27,11 @@ struct lock cache_lock;
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t directs[124];
+    block_sector_t directs[123];
     block_sector_t single_indirect;
     block_sector_t double_indirect;
     
+    int dir;
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
   };
@@ -73,12 +74,12 @@ byte_to_sector (struct inode *inode, off_t pos, bool writing)
     off_t actual_sector_size = (inode -> data.length + BLOCK_SECTOR_SIZE - 1) / BLOCK_SECTOR_SIZE;
     off_t pos_sector_size = (pos + 1 + BLOCK_SECTOR_SIZE - 1) / BLOCK_SECTOR_SIZE;
 
-    off_t new_pos_doub = pos / BLOCK_SECTOR_SIZE - 252;
-    off_t curr_pos_doub = inode->data.length / BLOCK_SECTOR_SIZE - 252;
+    off_t new_pos_doub = pos / BLOCK_SECTOR_SIZE - 251;
+    off_t curr_pos_doub = inode->data.length / BLOCK_SECTOR_SIZE - 251;
     off_t double_pos = new_pos_doub / 128;
     off_t ind_pos = new_pos_doub % 128;
-    off_t new_pos_s = pos / BLOCK_SECTOR_SIZE - 124;
-    off_t curr_pos_s = inode->data.length / BLOCK_SECTOR_SIZE - 124;
+    off_t new_pos_s = pos / BLOCK_SECTOR_SIZE - 123;
+    off_t curr_pos_s = inode->data.length / BLOCK_SECTOR_SIZE - 123;
     off_t new_pos_dir = pos / BLOCK_SECTOR_SIZE;
     off_t curr_pos_dir = inode->data.length / BLOCK_SECTOR_SIZE;
     // printf("pos sector idx %d, len sector idx %d\n", bytes_to_sectors(pos), bytes_to_sectors(inode->data.length));
@@ -87,13 +88,13 @@ byte_to_sector (struct inode *inode, off_t pos, bool writing)
       growth = true;
       inode->data.length = pos + 1;
     }
-    if(pos >= 252 * BLOCK_SECTOR_SIZE){
+    if(pos >= 251 * BLOCK_SECTOR_SIZE){
       // printf("doubleeee\n");
       if(growth) inode_create_double(&inode->data, max(curr_pos_doub, 0), new_pos_doub - max(curr_pos_doub, 0));
       block_read(fs_device, inode->data.double_indirect, tempo);
       block_read(fs_device, tempo[double_pos], tempo);
       res = tempo[ind_pos];
-    } else if(pos >= 124 * BLOCK_SECTOR_SIZE){
+    } else if(pos >= 123 * BLOCK_SECTOR_SIZE){
       // printf("singleeee\n");
       if(growth) inode_create_single(&inode->data, max(curr_pos_s, 0), new_pos_s - max(curr_pos_s, 0));
       block_read(fs_device, inode->data.single_indirect, tempo);
@@ -250,7 +251,7 @@ bool inode_create_double(struct inode_disk *dsk, size_t start, size_t num_alloc)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, int dir)
 {
   // printf("--------------creating--------------\n");
   struct inode_disk *disk_inode = NULL;
@@ -392,7 +393,7 @@ inode_remove (struct inode *inode)
   block_sector_t* tempo = malloc(sizeof(block_sector_t));
   int i = 0;
   if(total > DIRECT_SIZE + ON_SINGLE_SECTOR){
-    off_t new_pos = i - 252 - 1;
+    off_t new_pos = i - 251 - 1;
     off_t double_pos = new_pos / ON_SINGLE_SECTOR;
     off_t ind_pos = new_pos % ON_SINGLE_SECTOR;
     block_read(fs_device, inode->data.double_indirect, mass);
@@ -536,4 +537,8 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+bool is_directory(struct inode* inode) {
+  return inode->data.dir;
 }
