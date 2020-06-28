@@ -63,13 +63,16 @@ struct inode
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
 static block_sector_t
-byte_to_sector (const struct inode *inode, off_t pos, bool writing)
+byte_to_sector (struct inode *inode, off_t pos, bool writing)
 {
   ASSERT (inode != NULL);
   block_sector_t* tempo = malloc(BLOCK_SECTOR_SIZE);
   if (pos < BLOCK_SECTOR_SIZE * MAX_FILE_SIZE){
-    block_sector_t res;
+    block_sector_t res = -1;
     bool growth = false;
+    off_t actual_sector_size = (inode -> data.length + BLOCK_SECTOR_SIZE - 1) / BLOCK_SECTOR_SIZE;
+    off_t pos_sector_size = (pos + 1 + BLOCK_SECTOR_SIZE - 1) / BLOCK_SECTOR_SIZE;
+
     off_t new_pos_doub = pos / BLOCK_SECTOR_SIZE - 252;
     off_t curr_pos_doub = inode->data.length / BLOCK_SECTOR_SIZE - 252;
     off_t double_pos = new_pos_doub / 128;
@@ -78,21 +81,29 @@ byte_to_sector (const struct inode *inode, off_t pos, bool writing)
     off_t curr_pos_s = inode->data.length / BLOCK_SECTOR_SIZE - 124;
     off_t new_pos_dir = pos / BLOCK_SECTOR_SIZE;
     off_t curr_pos_dir = inode->data.length / BLOCK_SECTOR_SIZE;
-    
-    if(writing && bytes_to_sectors(pos) > bytes_to_sectors(inode->data.length)) growth = true;
+    // printf("pos sector idx %d, len sector idx %d\n", bytes_to_sectors(pos), bytes_to_sectors(inode->data.length));
+    if(writing && pos >= inode->data.length) {
+      // printf("------Growth-------\n");
+      growth = true;
+      inode->data.length = pos + 1;
+    }
     if(pos >= 252 * BLOCK_SECTOR_SIZE){
+      // printf("doubleeee\n");
       if(growth) inode_create_double(&inode->data, max(curr_pos_doub, 0), new_pos_doub - max(curr_pos_doub, 0));
       block_read(fs_device, inode->data.double_indirect, tempo);
       block_read(fs_device, tempo[double_pos], tempo);
       res = tempo[ind_pos];
     } else if(pos >= 124 * BLOCK_SECTOR_SIZE){
+      // printf("singleeee\n");
       if(growth) inode_create_single(&inode->data, max(curr_pos_s, 0), new_pos_s - max(curr_pos_s, 0));
       block_read(fs_device, inode->data.single_indirect, tempo);
       res = tempo[new_pos_s];
     } else {
-      if(growth) inode_create_direct(&inode->data, max(curr_pos_dir, 0), new_pos_dir - max(curr_pos_dir, 0));
+      if(growth) inode_create_direct(&inode->data, max(curr_pos_dir + (inode->data.length % 512 == 0 ?1:0), 0), new_pos_dir - curr_pos_dir + (inode->data.length % 512 == 0 ?1:0));
       res = inode->data.directs[new_pos_dir];
+      // printf("new_pos_dir %d, result sector num %d\n", new_pos_dir, res);
     }
+    block_write(fs_device, inode->sector, &inode->data);
     free(tempo);
     return res;
   } else
@@ -114,8 +125,12 @@ inode_init (void)
 
 /* creates direct blocks for new files and fills it with 0s */
 bool inode_create_direct(struct inode_disk *dsk, size_t start, size_t num_alloc){
-  // printf("-------------direct-------------\n");
   /* fill in with 0s for on default */
+  if (num_alloc == 0){
+    return true;
+  }
+  // printf("-------------direct-------------\n");
+  // printf("start %d, num_alloc %d\n", start, num_alloc);
   memset(dsk -> directs, 0, DIRECT_SIZE * sizeof(block_sector_t));
   bool res = true;
   char zeros[BLOCK_SECTOR_SIZE];
@@ -175,6 +190,10 @@ bool inode_create_single(struct inode_disk *dsk, size_t start, size_t num_alloc)
   than we need double indirect sectors */
 bool inode_create_double(struct inode_disk *dsk, size_t start, size_t num_alloc){
   // printf("-------------double-------------\n");
+  if (num_alloc == 0){
+    return true;
+  }
+
   bool res = true;
   char zeros[BLOCK_SECTOR_SIZE];
   memset(zeros, 0, BLOCK_SECTOR_SIZE);
@@ -238,7 +257,6 @@ inode_create (block_sector_t sector, off_t length)
   bool success = false;
 
   ASSERT (length >= 0);
-
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
@@ -458,13 +476,12 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   if (inode->deny_write_cnt)
     return 0;
-
   while (size > 0)
     {
+      // printf("offest sector idx %d, inode len sector idx %d\n", offset,inode->data.length);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset, true);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
-
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
       off_t inode_left = inode_length (inode) - offset;
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;

@@ -305,7 +305,7 @@ int handle_filesize(int fd) {
   if (file_info == NULL){
     handle_exit(-1);
   }
-  int filesize = file_info -> size;
+  int filesize = file_length(file_info->file);
 
   return filesize;
 }

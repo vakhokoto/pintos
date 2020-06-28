@@ -80,3 +80,13 @@ cache_entry* cache_insert(block_sector_t sector_idx, bool writing){
   list_push_back(&cache_list, &(cache->elemL));
   return cache;
 }
+
+void dispose_cache(){
+  struct list_elem *e;
+  for (e = list_begin (&cache_list); e != list_end (&cache_list); e = list_next (e)){
+    cache_entry* entry = list_entry(e, struct cache_entry, elemL);
+    if(entry -> writing){
+      block_write (fs_device, entry->sector, entry->buffer);
+    }
+  }
+}

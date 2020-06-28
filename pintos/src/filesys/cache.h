@@ -16,5 +16,6 @@ typedef struct cache_entry{
 void cache_init();
 cache_entry* cache_insert(block_sector_t, bool);
 void* lookup_cache(block_sector_t);
+void dispose_cache();
 
 #endif

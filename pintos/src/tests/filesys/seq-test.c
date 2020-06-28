@@ -24,7 +24,7 @@ seq_test (const char *file_name, void *buf, size_t size, size_t initial_size,
         block_size = size - ofs;
       int wr = write (fd, buf + ofs, block_size);
       if (wr != (int) block_size){
-        printf("aeeee %d\n", wr);
+        // printf("aeeee %d\n", wr);
         fail ("write %zu bytes at offset %zu in \"%s\" failed",
               block_size, ofs, file_name);
       }
