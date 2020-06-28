@@ -557,6 +557,7 @@ static bool put_user (uint8_t *udst, uint8_t byte){
   return error_code != -1;
 }
 
+
 #ifdef VM
 /**
  * Finds mmap info structure in its mmap list 
