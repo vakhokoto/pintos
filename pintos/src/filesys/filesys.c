@@ -13,6 +13,7 @@
 struct block *fs_device;
 
 static void do_format (void);
+static int get_next_part (char part[NAME_MAX + 1], const char **srcp);
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -117,19 +118,32 @@ struct dir* get_starting_dir(char* path){
 }
 
 struct dir* configure_dir(char* path) {
-  struct dir* dir = get_starting_dir(path);
-
-  char* tok_ptr = NULL;
-  char* token = strtok_r(path, "/", &tok_ptr);
-  
-  while(token && dir) {
+  struct dir* mkdir = get_starting_dir(path);
+  char next[15];
+  int found;
+  bool end_string = false;
+  while(true){
     struct inode* inode;
-    if(dir_lookup(dir, token, &inode)) {
-      dir = dir_open(inode);
+    found = get_next_part(next, &path);
+    // printf("NEXT filename - %s, found %d\n", next, found);
+    if (found == -1){
+      return NULL;
+    } else if (found == 1){
+        // Something's wrong, name's been found in last iteration
+        if (dir_lookup (mkdir, next, &inode)){
+          dir_close(mkdir);
+          mkdir = dir_open(inode);
+        } else {
+          return NULL;
+        }
+    } else {
+      // end of string
+      end_string = true;
+      break;
     }
-    token = strtok_r(NULL, "/", &tok_ptr);
   }
-  return dir;
+  if (end_string) return mkdir;
+  return NULL;
 } 
 
 /*Changes the current working directory of the process
