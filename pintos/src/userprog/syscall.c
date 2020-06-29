@@ -258,10 +258,10 @@ int handle_open(const char *filename) {
 
   /* creating file */
   struct file *new_file = filesys_open(filename);
-
   /* return -1 if file can't be created */
   if (new_file == NULL){
     lock_release(&file_lock);
+    // printf("FAIL NULL\n");
     return new_file_fd;
   }
 
@@ -277,9 +277,12 @@ int handle_open(const char *filename) {
 
   if (opened_file == NULL){
     lock_release(&file_lock);
+        // printf("MALLOC NULL\n");
+
     handle_exit(-1);
     return -1;
   }
+
 
   if (cur_last_elem == NULL){
     new_file_fd = 3;
@@ -292,6 +295,13 @@ int handle_open(const char *filename) {
   opened_file -> fd = new_file_fd;
   opened_file -> file = new_file;
   opened_file -> size = file_length(new_file);
+  struct inode* inode;
+  inode = file_get_inode(opened_file -> file);
+  if (inode != NULL && is_directory(inode)){
+    thread_current()->dir = dir_open(inode);
+            // printf("IS DIRECTORY?\n");
+
+  }
 
   list_push_back(&cur_thread -> file_list, &opened_file -> elem);
 

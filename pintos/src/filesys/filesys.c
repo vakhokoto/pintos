@@ -11,7 +11,7 @@
 
 /* Partition that contains the file system. */
 struct block *fs_device;
-
+struct dir* get_starting_dir(char* path);
 static void do_format (void);
 static int get_next_part (char part[NAME_MAX + 1], const char **srcp);
 
@@ -70,11 +70,13 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  
+  struct dir *dir = get_starting_dir (name);
   struct inode *inode = NULL;
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
+  // printf("OPENING %s %d %d\n", name, inode != NULL, dir != NULL);
   dir_close (dir);
 
   return file_open (inode);
@@ -87,7 +89,7 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = get_starting_dir (name);
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir);
 
@@ -110,10 +112,13 @@ do_format (void)
 struct dir* get_starting_dir(char* path){
   struct dir* dir = NULL;
   if(path[0] == '/' || !thread_current()->dir) {
+    // printf("OPENING ROOT\n");
     dir = dir_open_root();
   } else {
+    // printf("CHDDD\n");
     dir = dir_reopen(thread_current()->dir);
   }
+  // ASSERT(dir != NULL);
   return dir;
 }
 
@@ -122,8 +127,8 @@ struct dir* configure_dir(char* path) {
   char next[15];
   int found;
   bool end_string = false;
-  while(true){
     struct inode* inode;
+  while(true){
     found = get_next_part(next, &path);
     // printf("NEXT filename - %s, found %d\n", next, found);
     if (found == -1){
@@ -134,6 +139,7 @@ struct dir* configure_dir(char* path) {
           dir_close(mkdir);
           mkdir = dir_open(inode);
         } else {
+          // printf("NULLLLLL\n");
           return NULL;
         }
     } else {
@@ -142,6 +148,7 @@ struct dir* configure_dir(char* path) {
       break;
     }
   }
+  // printf("%d emd\n", end_string);
   if (end_string) return mkdir;
   return NULL;
 } 
@@ -197,8 +204,8 @@ bool split_dir_path(char* dir, struct dir **res_dir, char* name) {
     return (found > 0);
   }
   
-  while(true){
     struct inode* inode;
+  while(true){
     found = get_next_part(next, &dir);
     // printf("NEXT filename - %s, found %d\n", next, found);
     if (found == -1){

@@ -132,7 +132,9 @@ bool inode_create_direct(struct inode_disk *dsk, size_t start, size_t num_alloc)
   }
   // printf("-------------direct-------------\n");
   // printf("start %d, num_alloc %d\n", start, num_alloc);
-  memset(dsk -> directs, 0, DIRECT_SIZE * sizeof(block_sector_t));
+  if (!start){
+    memset(dsk -> directs, 0, DIRECT_SIZE * sizeof(block_sector_t));
+  }
   bool res = true;
   char zeros[BLOCK_SECTOR_SIZE];
   memset(zeros, 0, BLOCK_SECTOR_SIZE);
@@ -288,6 +290,7 @@ inode_create (block_sector_t sector, off_t length, int dir)
         }
         block_write (fs_device, sector, disk_inode);
         free (disk_inode);
+        disk_inode->dir = dir;
       }    
     }
 
