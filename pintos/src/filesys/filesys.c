@@ -9,11 +9,12 @@
 #include "filesys/cache.h"
 #include "threads/thread.h"
 
-/* Partition that contains the file system. */
+/* Partition thnameat contains the file system. */
 struct block *fs_device;
 struct dir* get_starting_dir(char* path);
 static void do_format (void);
 static int get_next_part (char part[NAME_MAX + 1], const char **srcp);
+bool split_dir_path(char* dir, struct dir **res_dir, char* name);
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -48,16 +49,26 @@ filesys_done (void)
    or if internal memory allocation fails. */
 bool
 filesys_create (const char *name, off_t initial_size)
-{
+{ 
+
+  char new_name[256]; new_name[0] = '\0';
+  struct dir* mkdir = NULL;
+  // printf("making filesys - %s\n", name);
+  bool success;
+  success = split_dir_path(name, &mkdir, new_name);
+  if(!mkdir) mkdir = dir_open_root();
+  // printf("%s [%s]", name, new_name);
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
-  bool success = (dir != NULL
+  success =  success && (mkdir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, 0)
-                  && dir_add (dir, name, inode_sector));
-  if (!success && inode_sector != 0)
+                  && dir_add (mkdir, new_name, inode_sector));
+  if (!success && inode_sector != 0){
     free_map_release (inode_sector, 1);
-  dir_close (dir);
+    // printf("NOT SUCC\n");
+  }
+  dir_close (mkdir);
+
 
   return success;
 }
@@ -71,11 +82,27 @@ struct file *
 filesys_open (const char *name)
 {
   
-  struct dir *dir = get_starting_dir (name);
+  
+  char new_name[256]; new_name[0] = '\0';
+  struct dir* dir = NULL;
+  // printf("OPENING - %s\n", name);
+  bool success;
+  success = split_dir_path(name, &dir, new_name);
+    // printf("OP - [%s]\n", new_name);
+  if(!dir) dir = dir_open_root();
+
+  if (strcmp(name, "/")  == 0){
+    thread_current()->dir = dir_open_root();
+    return file_open((dir_get_inode(dir_open_root())));
+  } else if ( strcmp(name, ".") == 0){
+    return file_open((dir_get_inode(thread_current()->dir)));
+  }
+
+  // struct dir *dir = get_starting_dir (name);
   struct inode *inode = NULL;
 
   if (dir != NULL)
-    dir_lookup (dir, name, &inode);
+    dir_lookup (dir, new_name, &inode);
   // printf("OPENING %s %d %d\n", name, inode != NULL, dir != NULL);
   dir_close (dir);
 
@@ -89,8 +116,13 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name)
 {
-  struct dir *dir = get_starting_dir (name);
-  bool success = dir != NULL && dir_remove (dir, name);
+  char new_name[256]; new_name[0] = '\0';
+  struct dir* dir = NULL;
+  // printf("making filesys - %s\n", name);
+  bool success;
+  success = split_dir_path(name, &dir, new_name);
+  // struct dir *dir = get_starting_dir (name);
+  success = success && dir != NULL && dir_remove (dir, new_name);
   dir_close (dir);
 
   return success;
@@ -159,8 +191,8 @@ struct dir* configure_dir(char* path) {
 bool filesys_chdir(const char* dir) {
   struct dir* chdir = configure_dir(dir);
   if(!chdir) return false;
-
-  dir_close(thread_current()->dir);
+  if (thread_current()->dir != NULL){
+    dir_close(thread_current()->dir);}
   thread_current()->dir = chdir;
   
   return true;
@@ -240,9 +272,8 @@ bool filesys_mkdir(const char* dir) {
   // printf("making dir - %s\n", dir);
   bool success;
   success = split_dir_path(dir, &mkdir, name);
-  if (!success) return false;
+  if (!success || !mkdir) return false;
   // printf("splitted %s\n", name);
-  if(!mkdir) return false;
 
   block_sector_t inode_sector = 0;
   success = (mkdir != NULL
@@ -250,8 +281,10 @@ bool filesys_mkdir(const char* dir) {
                   && inode_create (inode_sector, 0, 1)
                   && dir_create (inode_sector, inode_get_inumber (dir_get_inode (mkdir))) 
                   && dir_add (mkdir, name, inode_sector));
-  if (!success && inode_sector != 0)
+  if (!success && inode_sector != 0){
     free_map_release (inode_sector, 1);
+    // printf("not success\n");
+  }
   dir_close (mkdir);
 
   return success;

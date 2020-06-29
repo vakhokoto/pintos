@@ -249,14 +249,14 @@ int handle_open(const char *filename) {
     handle_exit(-1);
     return false;
   }
-
+  // printf("AAA\n");
 
   lock_acquire(&file_lock);
 
   /* file descriptor */
   int new_file_fd = -1;
-
   /* creating file */
+  
   struct file *new_file = filesys_open(filename);
   /* return -1 if file can't be created */
   if (new_file == NULL){
@@ -277,7 +277,7 @@ int handle_open(const char *filename) {
 
   if (opened_file == NULL){
     lock_release(&file_lock);
-        // printf("MALLOC NULL\n");
+      //  printf("MALLOC NULL\n");
 
     handle_exit(-1);
     return -1;
@@ -298,8 +298,8 @@ int handle_open(const char *filename) {
   struct inode* inode;
   inode = file_get_inode(opened_file -> file);
   if (inode != NULL && is_directory(inode)){
-    thread_current()->dir = dir_open(inode);
-            // printf("IS DIRECTORY?\n");
+    thread_current()->dir = dir_open(inode);  
+    // printf("SYSCALL\n");
 
   }
 
@@ -353,6 +353,12 @@ int handle_write(int fd, const void *buffer, unsigned size) {
     set_pinned(buffer, size, true);
     #endif
     /* writing into file */
+    #ifdef FILESYS
+    if(is_directory(file_get_inode(output_file->file))){
+        handle_exit(-1);
+      return false;
+    }
+    #endif
     written_bytes = file_write(output_file -> file, buffer, size);
     #ifdef VM
     set_pinned(buffer, size, false);
@@ -397,9 +403,17 @@ int handle_read(int fd, void* buffer, unsigned size) {
       lock_release(&file_lock);
       return -1;
     }
+    #ifdef FILESYS
+    if(is_directory(file_get_inode(file_info->file))){
+        handle_exit(-1);
+      return false;
+    }
+    #endif
+
     #ifdef VM
     set_pinned(buffer, size, true);
     #endif
+   
     bytes_read = file_read(file_info -> file, buffer, size);
     #ifdef VM
     set_pinned(buffer, size, false);
@@ -616,9 +630,7 @@ mapid_t handle_mmap(int fd, uint8_t* upage) {
 
   lock_acquire(&file_lock);
   file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
-  // void* noth = malloc(file_info->size);
-  // size_t tot = file_read(file_info->file, noth, PGSIZE);
-  // printf("File data read -> %d \n", file_info->size);
+
   /* check file - file exist - file opened - file size != 0 */
   if(file_info && file_info->file && file_info->size > 0) {
     mmap_info_t* mmap_info = malloc(sizeof(struct mmap_info_t));
@@ -664,7 +676,6 @@ void handle_munmap(mapid_t mapping) {
 
     supplemental_page_table_unmap_file(&(thread_current()->supp_table), mmap_info);
 
-    // file_close(mmap_info->file_info->file);
     list_remove(&(mmap_info->elem));
     free(mmap_info);
   }
@@ -726,8 +737,7 @@ int handle_inumber(int fd) {
     lock_acquire(&file_lock);
     file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
     if(file_info && file_info->file)
-      eax = inode_get_inumber(file_info->file);
-
+      eax = inode_get_inumber(file_get_inode(file_info->file));
     lock_release(&file_lock);
     return eax;
 }
