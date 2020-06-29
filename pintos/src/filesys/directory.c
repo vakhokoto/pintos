@@ -26,7 +26,15 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry), 1);
+  bool success = true;
+  success = inode_create (sector, entry_cnt * sizeof (struct dir_entry), 1);
+  if(!success) return false;
+
+  // struct dir *dir = dir_open( inode_open(sector) );
+  // ASSERT (dir != NULL);
+  // dir_close(dir);
+
+  return success;
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -123,8 +131,15 @@ dir_lookup (const struct dir *dir, const char *name,
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
-  if (lookup (dir, name, &e, NULL))
+  if (strcmp (name, ".") == 0) {
+    // current directory
+    *inode = inode_reopen (dir->inode);
+  }
+  else if (strcmp (name, "..") == 0) {
+    // parent directory : the information is stored at the first (0-pos) entry.
+    inode_read_at (dir->inode, &e, sizeof e, 0);
+    *inode = inode_open (e.inode_sector);
+  }else if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;

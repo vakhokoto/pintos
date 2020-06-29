@@ -56,8 +56,11 @@ void cache_evict(){
   for (e = list_begin (&cache_list); e != list_end (&cache_list); e = list_next (e)){
     cache_entry* entry = list_entry(e, struct cache_entry, elemL);
     
-    if(entry -> writing){
-      block_write (fs_device, entry->sector, entry->buffer);
+    if (entry) {
+      if (entry -> writing){
+        block_write (fs_device, entry->sector, entry->buffer);
+      }
+
       list_remove(&entry->elemL);
       hash_delete(&cache_map, &entry->elemH);
 
@@ -96,9 +99,11 @@ void cache_dispose(){
     if(entry -> writing){
       block_write (fs_device, entry->sector, entry->buffer);
     }
+
   }
 }
 
+/* read data from from cache */
 void cache_read(struct block *block UNUSED, block_sector_t sector, void *buffer){
   lock_acquire(&cache_lock);
 
@@ -112,6 +117,7 @@ void cache_read(struct block *block UNUSED, block_sector_t sector, void *buffer)
   lock_release(&cache_lock);
 }
 
+/* write data to disk via cache */
 void cache_write(struct block *block UNUSED, block_sector_t sector, void *buffer){
   lock_acquire(&cache_lock);
 
@@ -122,5 +128,6 @@ void cache_write(struct block *block UNUSED, block_sector_t sector, void *buffer
   }
 
   memcpy(cache -> buffer, buffer, BLOCK_SECTOR_SIZE);
+  cache -> writing = true;
   lock_release(&cache_lock);
 }

@@ -305,6 +305,7 @@ inode_create (block_sector_t sector, off_t length, int dir)
         if (sectors > 0){
           success &= inode_create_double(disk_inode, 0, min(sectors, DOUBLE_SIZE));
         }
+        disk_inode->dir = dir;
         cache_write (fs_device, sector, disk_inode);
         free (disk_inode);
       }    
