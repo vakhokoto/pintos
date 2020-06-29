@@ -14,7 +14,7 @@ typedef struct cache_entry{
 } cache_entry;
 
 void cache_init();
-void dispose_cache();
+void cache_dispose();
 void cache_read(struct block * UNUSED, block_sector_t, void *);
 void cache_write(struct block * UNUSED, block_sector_t, void *);
 

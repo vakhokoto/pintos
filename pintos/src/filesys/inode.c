@@ -69,15 +69,26 @@ byte_to_sector (struct inode *inode, off_t offset) {
   if (offset < cnt_sectors * BLOCK_SECTOR_SIZE) {
     off_t idx = offset / BLOCK_SECTOR_SIZE;
 
-    if(idx < DIRECT_SIZE)
+    if (idx < DIRECT_SIZE)
       return inode->data.directs[idx];
     
-    if(idx < DIRECT_SIZE + SINGLE_SIZE) {
+    if (idx < DIRECT_SIZE + SINGLE_SIZE) {
       block_sector_t block[ON_SINGLE_SECTOR];
       cache_read(fs_device, inode->data.single_indirect, block);
       return block[idx - DIRECT_SIZE];
     }
 
+    if (idx < DIRECT_SIZE + SINGLE_SIZE + DOUBLE_SIZE) {
+      size_t double_offset = idx - (DIRECT_SIZE + SINGLE_SIZE);
+      size_t first_levet = double_offset / ON_SINGLE_SECTOR;
+      size_t second_level = double_offset % ON_SINGLE_SECTOR;
+
+      block_sector_t block[ON_SINGLE_SECTOR];
+      cache_read(fs_device, inode->data.double_indirect, block);
+      cache_read(fs_device, block[first_levet], block);
+
+      return block[second_level];
+    }
   }
   return -1;
 }
@@ -92,7 +103,7 @@ void try_allocate_sectors(struct inode *inode, off_t idx) {
   
   if(owned_sectors < DIRECT_SIZE) {
     size_t start_sector = owned_sectors;
-    size_t num_alloc = min(last_sector - start_sector, DIRECT_SIZE - start_sector);
+    size_t num_alloc = min(last_sector, DIRECT_SIZE) - start_sector;
 
     inode_create_direct(&inode->data, start_sector, num_alloc);
 
@@ -101,9 +112,18 @@ void try_allocate_sectors(struct inode *inode, off_t idx) {
 
   if(owned_sectors < last_sector && owned_sectors < DIRECT_SIZE + SINGLE_SIZE) {
     size_t start_sector = owned_sectors;
-    size_t num_alloc = min(last_sector - start_sector, DIRECT_SIZE + SINGLE_SIZE - start_sector);
+    size_t num_alloc = min(last_sector, DIRECT_SIZE + SINGLE_SIZE) - start_sector;
 
     inode_create_single(&inode->data, start_sector - DIRECT_SIZE, num_alloc);
+
+    owned_sectors += num_alloc;
+  }
+
+  if (owned_sectors < last_sector){
+    size_t start_sector = owned_sectors;
+    size_t num_alloc = min(last_sector, DIRECT_SIZE + SINGLE_SIZE + DOUBLE_SIZE) - start_sector;
+
+    inode_create_double(&inode -> data, start_sector, num_alloc);
 
     owned_sectors += num_alloc;
   }

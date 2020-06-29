@@ -35,7 +35,7 @@ void cache_init(){
 
 /* look up sector in cache and if found move it to the
   back of the list for LRU caching */
-cache_entry* lookup_cache(block_sector_t sector){
+cache_entry* cache_lookup(block_sector_t sector){
   cache_entry cache;
   cache.sector = sector;
   struct hash_elem* el = hash_find(&cache_map, &(cache.elemH));
@@ -88,7 +88,7 @@ cache_entry* cache_insert(block_sector_t sector_idx, bool writing){
   return cache;
 }
 
-void dispose_cache(){
+void cache_dispose(){
   struct list_elem *e;
   for (e = list_begin (&cache_list); e != list_end (&cache_list); e = list_next (e)){
     cache_entry* entry = list_entry(e, struct cache_entry, elemL);
@@ -102,7 +102,7 @@ void dispose_cache(){
 void cache_read(struct block *block UNUSED, block_sector_t sector, void *buffer){
   lock_acquire(&cache_lock);
 
-  cache_entry *cache = lookup_cache(sector);
+  cache_entry *cache = cache_lookup(sector);
 
   if (cache == NULL) {
     cache = cache_insert(sector, false);
@@ -115,7 +115,7 @@ void cache_read(struct block *block UNUSED, block_sector_t sector, void *buffer)
 void cache_write(struct block *block UNUSED, block_sector_t sector, void *buffer){
   lock_acquire(&cache_lock);
 
-  cache_entry *cache = lookup_cache(sector);
+  cache_entry *cache = cache_lookup(sector);
 
   if (cache == NULL) {
     cache = cache_insert(sector, true);
