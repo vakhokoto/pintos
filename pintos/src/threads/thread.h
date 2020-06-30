@@ -92,6 +92,7 @@ typedef struct file_info_t{
    struct list_elem elem;
    int fd, size;
    struct file *file;
+   struct dir* dir;
 } file_info_t;
 
 typedef int mapid_t;
