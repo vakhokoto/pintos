@@ -391,7 +391,7 @@ thread_current (void)
      of stack, so a few big automatic arrays or moderate
      recursion can cause stack overflow. */
   if (t->status != THREAD_RUNNING) {
-      printf("NOT THREAD RUNNING FAILING ASSERT -------\n");
+      // printf("NOT THREAD RUNNING FAILING ASSERT -------\n");
     // if (t->status == THREAD_BLOCKED){
     //   printf("BLOCKED\n");
     // } else if(t->status == THREAD_READY){

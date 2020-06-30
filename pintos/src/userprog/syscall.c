@@ -163,7 +163,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     }case SYS_READDIR: {
       read_argv(argv, &fd, sizeof(fd));
       read_argv(argv + sizeof(fd), &name, sizeof(name));
-      f->eax = handle_readdir(fd, name);
+      f->eax = handle_readdir(fd, *(char**) (argv + (sizeof fd)));
       break;
     }case SYS_ISDIR: {
       read_argv(argv, &fd, sizeof(fd));
