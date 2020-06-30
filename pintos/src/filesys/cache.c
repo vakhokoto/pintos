@@ -92,6 +92,7 @@ cache_entry* cache_insert(block_sector_t sector_idx, bool writing){
 }
 
 void cache_dispose(){
+  lock_acquire(&cache_lock);
   struct list_elem *e;
   for (e = list_begin (&cache_list); e != list_end (&cache_list); e = list_next (e)){
     cache_entry* entry = list_entry(e, struct cache_entry, elemL);
@@ -101,6 +102,7 @@ void cache_dispose(){
     }
 
   }
+  lock_release(&cache_lock);
 }
 
 /* read data from from cache */
