@@ -403,7 +403,7 @@ thread_current (void)
     // }
     debug_backtrace();
   }
-  if(!is_thread(t)) printf("arasworia\n");
+  // if(!is_thread(t)) printf("arasworia\n");
   ASSERT (is_thread (t));
   ASSERT (t->status == THREAD_RUNNING);
 
@@ -443,7 +443,6 @@ thread_exit (void)
 void
 thread_yield (void)
 {
-  //ASSERT (thread_started);
   struct thread *cur = thread_current ();
   enum intr_level old_level;
 

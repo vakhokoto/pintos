@@ -90,11 +90,7 @@ read_partition_table (struct block *block, block_sector_t sector,
   pt = malloc (sizeof *pt);
   if (pt == NULL)
     PANIC ("Failed to allocate memory for partition table.");
-  if(block == fs_device) {
-    cache_read(block, 0, pt);
-  } else {
-    block_read(block, 0, pt);
-  }
+  block_read(block, 0, pt);
 
   /* Check signature. */
   if (pt->signature != 0xaa55)
@@ -310,11 +306,7 @@ static void
 partition_read (void *p_, block_sector_t sector, void *buffer)
 {
   struct partition *p = p_;
-  if(p->block == fs_device) {  
-    cache_read(p->block, p->start + sector, buffer);
-  } else {
-    block_read(p->block, p->start + sector, buffer);
-  }
+  block_read(p->block, p->start + sector, buffer);
 }
 
 /* Write sector SECTOR to partition P from BUFFER, which must
@@ -324,11 +316,7 @@ static void
 partition_write (void *p_, block_sector_t sector, const void *buffer)
 {
   struct partition *p = p_;
-  if(p->block == fs_device) {
-    cache_write(p->block, p->start + sector, buffer);
-  } else {
-    block_write(p->block, p->start + sector, buffer);
-  }
+  block_write(p->block, p->start + sector, buffer);
 }
 
 static struct block_operations partition_operations =
