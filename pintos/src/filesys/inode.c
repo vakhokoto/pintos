@@ -560,3 +560,7 @@ inode_length (const struct inode *inode)
 bool is_directory(struct inode* inode) {
   return inode->data.dir;
 }
+
+bool inode_check_removed(struct inode* inode) {
+  return inode->removed;
+}

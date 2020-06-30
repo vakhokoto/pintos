@@ -51,12 +51,16 @@ bool
 filesys_create (const char *name, off_t initial_size)
 { 
 
+  // if(thread_current()->no_directory) return false;
   char new_name[256]; new_name[0] = '\0';
   struct dir* mkdir = NULL;
   // printf("making filesys - %s\n", name);
   bool success;
   success = split_dir_path(name, &mkdir, new_name);
   if(!mkdir) mkdir = dir_open_root();
+  if(inode_check_removed(dir_get_inode(mkdir))){
+    return false;
+  }
   // printf("%s [%s]", name, new_name);
   block_sector_t inode_sector = 0;
   success =  success && (mkdir != NULL
@@ -82,20 +86,31 @@ struct file *
 filesys_open (const char *name)
 {
   
-  
   char new_name[256]; new_name[0] = '\0';
   struct dir* dir = NULL;
   // printf("OPENING - %s\n", name);
-  bool success;
-  success = split_dir_path(name, &dir, new_name);
+  bool success = split_dir_path(name, &dir, new_name);
     // printf("OP - [%s]\n", new_name);
+  if(dir != NULL && inode_check_removed(dir_get_inode(dir))) {
+    dir_close(dir);
+    return NULL;
+  }
   if(!dir) dir = dir_open_root();
 
   if (strcmp(name, "/")  == 0){
     thread_current()->dir = dir_open_root();
     return file_open((dir_get_inode(dir_open_root())));
-  } else if ( strcmp(name, ".") == 0){
+  } else if (strcmp(name, ".") == 0){
+    if(thread_current()->dir == NULL){
+       return NULL;
+    }
     return file_open((dir_get_inode(thread_current()->dir)));
+  } 
+  else if (strcmp(name, "..") == 0){
+    if(thread_current()->dir == NULL){
+      // printf("VFEILDEBI\n");
+       return NULL;
+    }
   }
 
   // struct dir *dir = get_starting_dir (name);
@@ -122,10 +137,12 @@ filesys_remove (const char *name)
   bool success;
   success = split_dir_path(name, &dir, new_name);
   // struct dir *dir = get_starting_dir (name);
-  success = success && dir != NULL && dir_remove (dir, new_name);
+  if (dir == NULL) return false;
+  // block_sector_t to_remove_sector = inode_get_inumber( dir_get_inode(dir));
+  // printf("%d  %d %s %s", to_remove_sector, inode_get_inumber( dir_get_inode(thread_current()->dir)), name, new_name);
+  success =  dir_remove (dir, new_name);
   dir_close (dir);
-
-  return success;
+  return success; 
 }
 
 /* Formats the file system. */
@@ -134,7 +151,7 @@ do_format (void)
 {
   printf ("Formatting file system...");
   free_map_create ();
-  if (!dir_create (ROOT_DIR_SECTOR, 16))
+  if (!dir_create (ROOT_DIR_SECTOR, 0, 16))
     PANIC ("root directory creation failed");
   free_map_close ();
   printf ("done.\n");
@@ -257,6 +274,8 @@ bool split_dir_path(char* dir, struct dir **res_dir, char* name) {
     }
   }
   *res_dir = mkdir;
+
+  
   // printf("MOVRCHI, \n");
   return true;
 }
@@ -279,7 +298,7 @@ bool filesys_mkdir(const char* dir) {
   success = (mkdir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, 0, 1)
-                  && dir_create (inode_sector, inode_get_inumber (dir_get_inode (mkdir))) 
+                  && dir_create (inode_sector, inode_get_inumber (dir_get_inode (mkdir)), 1) 
                   && dir_add (mkdir, name, inode_sector));
   if (!success && inode_sector != 0){
     free_map_release (inode_sector, 1);

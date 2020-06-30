@@ -232,11 +232,15 @@ bool handle_create(const char *filename, unsigned initial_size) {
 */
 bool handle_remove(const char *filename) {
   lock_acquire(&file_lock);
+  if(strcmp(filename, "/") == 0){
+    lock_release(&file_lock);
+    return false;
+  } 
   bool removed = filesys_remove(filename);
   lock_release(&file_lock);
 
   if (!removed){
-    handle_exit(-1);
+    return false;
   }
   return true; 
 }
@@ -298,9 +302,11 @@ int handle_open(const char *filename) {
   struct inode* inode;
   inode = file_get_inode(opened_file -> file);
   if (inode != NULL && is_directory(inode)){
-    thread_current()->dir = dir_open(inode);  
+    opened_file->dir = dir_open(inode);  
     // printf("SYSCALL\n");
 
+  } else {
+    opened_file-> dir = NULL;
   }
 
   list_push_back(&cur_thread -> file_list, &opened_file -> elem);
@@ -483,6 +489,10 @@ void handle_close(int fd) {
   if (file != NULL){
     /* close file */
     file_close(file -> file);
+    if (file->dir){
+       dir_close(file->dir);  
+      // printf("closn")
+    }
 
     list_remove(&file -> elem);
 
@@ -709,13 +719,11 @@ bool handle_mkdir(const char* dir) {
 bool handle_readdir(int fd, const char* name) {
     bool eax = false;
     lock_acquire(&file_lock);
-    
     file_info_t* file_info = get_file_info(fd, &(thread_current()->file_list));
     struct inode* inode = file_get_inode(file_info->file);
     if(is_directory(inode)) {
-      eax = dir_readdir(thread_current()->dir, name); // DIR ?!
+      eax = dir_readdir(file_info->dir, name); // DIR ?!
     }
-
     lock_release(&file_lock);
     return eax;
 }
